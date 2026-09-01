@@ -1,0 +1,13 @@
+============================================================
+[2026-08-31T08:47:26.842Z] INCIDENT ID: #LXV945RB
+ACTION: Admin Portal Honeypot Access (/wp-admin)
+TARGET IP: 127.0.0.1
+LOCATION: Local Network | Localhost
+TIMEZONE: Africa/Cairo
+DEVICE: Unknown Device (Linux x86_64) | OS: Unknown OS | BROWSER: Web Browser
+USER-AGENT: curl/7.88.1
+UA-CH (CLIENT HINTS): sec-ch-ua: none | sec-ch-ua-platform: none | sec-ch-ua-mobile: none | screen: 1920x1080 | lang: ar,en
+BAN DURATION: 24 HOURS (Expires: 2026-09-01T08:47:26.842Z)
+STATUS: PERMANENT 24H LOCKOUT ENFORCED
+============================================================
+

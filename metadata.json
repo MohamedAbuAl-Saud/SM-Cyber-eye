@@ -1,0 +1,6 @@
+{
+  "name": "SM",
+  "description": "العين السيبرانية SM - استخبارات تتبع الروابط الذكية وتحليل الزيارات الدقيقة، فحص الماك أدرس، استخراج بيانات الصور EXIF و HEIC، واستنتاج اللوكيشن البصري بالأقمار الصناعية AI Satellite Recon.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

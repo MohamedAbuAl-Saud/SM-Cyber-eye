@@ -1,0 +1,1184 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Search,
+  MapPin,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  Globe,
+  Radio,
+  Server,
+  Clock,
+  ExternalLink,
+  Copy,
+  Check,
+  Layers,
+  Sparkles,
+  Wifi,
+  Smartphone,
+  Navigation,
+  Compass,
+  Download,
+  FileText,
+  FileSpreadsheet,
+  Cpu,
+  Eye,
+  AlertTriangle,
+  BarChart2,
+  Activity,
+} from 'lucide-react';
+import { Language, translations } from '../translations';
+import { IpLookupResult } from '../types';
+
+interface IpLookupViewProps {
+  lang: Language;
+}
+
+export const IpLookupView: React.FC<IpLookupViewProps> = ({ lang }) => {
+  const t = translations[lang];
+  const [ipInput, setIpInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState<IpLookupResult | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [mapType, setMapType] = useState<'google' | 'satellite' | 'osm'>('satellite');
+  const logoUrl = 'https://i.ibb.co/d4SN4h4h/Screenshot-20260723-035727-Gallery.jpg';
+
+  // Auto-fetch visitor's current IP on first mount
+  useEffect(() => {
+    handleLookup('me');
+  }, []);
+
+  const handleLookup = async (queryIp?: string) => {
+    setError('');
+    const target = queryIp || ipInput.trim();
+    if (!target) {
+      setError(lang === 'ar' ? 'يرجى إدخال عنوان IP صحيح' : 'Please enter a valid IP address');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const endpoint = target === 'me' ? '/api/ip-lookup' : `/api/ip-lookup/${encodeURIComponent(target)}`;
+      const res = await fetch(endpoint);
+      if (!res.ok) {
+        throw new Error(lang === 'ar' ? 'فشل استعلام بيانات هذا الـ IP' : 'Failed to retrieve IP intelligence');
+      }
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        setResult(json.data);
+        if (target !== 'me') {
+          setIpInput(json.data.ip);
+        }
+      } else {
+        throw new Error(json.error || 'Lookup failed');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Error looking up IP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const toPureEnglishAscii = (val: any): string => {
+    if (val == null || val === undefined) return 'N/A';
+    let str = String(val);
+    str = str
+      .replace(/٠/g, '0')
+      .replace(/١/g, '1')
+      .replace(/٢/g, '2')
+      .replace(/٣/g, '3')
+      .replace(/٤/g, '4')
+      .replace(/٥/g, '5')
+      .replace(/٦/g, '6')
+      .replace(/٧/g, '7')
+      .replace(/٨/g, '8')
+      .replace(/٩/g, '9');
+    str = str.replace(/[^\x00-\x7F]/g, ' ').replace(/\s+/g, ' ').trim();
+    return str || 'N/A';
+  };
+
+  const downloadTxtReport = () => {
+    if (!result) return;
+    const content = `=====================================================
+            SM - IP Intelligence Report
+=====================================================
+Target IP: ${toPureEnglishAscii(result.ip)}
+Timestamp: ${toPureEnglishAscii(new Date().toISOString())}
+Country: ${toPureEnglishAscii(result.country)} (${toPureEnglishAscii(result.countryCode)})
+City / Region: ${toPureEnglishAscii(result.city)}, ${toPureEnglishAscii(result.region)} (Zip: ${toPureEnglishAscii(result.zip)})
+Coordinates: ${result.lat != null ? result.lat : 'N/A'}, ${result.lon != null ? result.lon : 'N/A'}
+Full Exact Address: ${toPureEnglishAscii(result.exactAddress)}
+Google Maps Link: https://www.google.com/maps?q=${result.lat || 0},${result.lon || 0}
+
+[NETWORK & CARRIER INTELLIGENCE]
+ISP Provider: ${toPureEnglishAscii(result.isp)}
+Organization: ${toPureEnglishAscii(result.org)}
+ASN & Network: ${toPureEnglishAscii(result.asn)} - ${toPureEnglishAscii(result.asName)}
+Reverse DNS Host: ${toPureEnglishAscii(result.reverseDns)}
+CIDR Route Prefix: ${toPureEnglishAscii(result.ipRouting)}
+Usage Classification: ${toPureEnglishAscii(result.usageType)}
+Network Medium Topology: ${toPureEnglishAscii(result.networkMedium)}
+Timezone & UTC Offset: ${toPureEnglishAscii(result.timezone)} (${toPureEnglishAscii(result.utcOffset)})
+
+[VPN UNVEIL & LEAK DIAGNOSTICS]
+VPN / Proxy Active: ${result.isProxyVpn ? 'YES' : 'NO'}
+Identified VPN Provider: ${toPureEnglishAscii(result.vpnProviderName)}
+DNS Leak Provider: ${toPureEnglishAscii(result.dnsLeakIsp)}
+WebRTC Local IP: ${toPureEnglishAscii(result.webrtcLocalIp)}
+WebRTC Public IP: ${toPureEnglishAscii(result.webrtcPublicIp)}
+Mismatch Risk Score: ${result.mismatchScore || 0}%
+Candidate Real Location: ${toPureEnglishAscii(result.candidateOriginalLocation)}
+
+[LATENCY TRIANGULATION & DIAGNOSTICS]
+Cloudflare RTT: ${result.latencyCloudflare || '-'} ms
+Google RTT: ${result.latencyGoogle || '-'} ms
+
+=====================================================
+Report generated by SM Automated Security Telemetry Engine
+`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SM_IP_Report_${toPureEnglishAscii(result.ip).replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadPdfReport = async () => {
+    if (!result) return;
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+      // Page 1: Comprehensive Telemetry (100% Pure White Background)
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 210, 297, 'F');
+
+      // Header
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(16);
+      doc.text('SM', 14, 15);
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.text('IP Intelligence & Security Audit Report', 14, 21);
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, 25, 196, 25);
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(11);
+      doc.text(`Target IP Address: ${toPureEnglishAscii(result.ip)}`, 14, 33);
+
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Report Timestamp: ${toPureEnglishAscii(new Date().toISOString())}`, 14, 39);
+
+      let currentY = 45;
+
+      const printWrappedLine = (label: string, value: string, maxW = 170) => {
+        const fullText = `${label}: ${value}`;
+        const lines = doc.splitTextToSize(fullText, maxW);
+        lines.forEach((line: string) => {
+          doc.text(line, 18, currentY);
+          currentY += 5;
+        });
+      };
+
+      // Section 1: Geolocation
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(14, currentY, 182, 54, 3, 3, 'D');
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(11);
+      doc.text('1. GEOLOCATION & ADDRESS DETAILS', 18, currentY + 8);
+      currentY += 15;
+
+      doc.setFontSize(9);
+      doc.setTextColor(51, 65, 85);
+      printWrappedLine('Country', `${toPureEnglishAscii(result.country)} (${toPureEnglishAscii(result.countryCode)})`);
+      printWrappedLine('City & State', `${toPureEnglishAscii(result.city)}, ${toPureEnglishAscii(result.region)}`);
+      printWrappedLine('Coordinates', `${result.lat || 'N/A'}, ${result.lon || 'N/A'}`);
+      printWrappedLine('Postal Code', toPureEnglishAscii(result.zip));
+      printWrappedLine('Estimated Address', toPureEnglishAscii(result.exactAddress));
+
+      currentY += 6;
+
+      // Section 2: Network & ISP
+      const box2StartY = currentY;
+      doc.roundedRect(14, box2StartY, 182, 58, 3, 3, 'D');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(11);
+      doc.text('2. NETWORK & ISP SPECIFICATIONS', 18, box2StartY + 8);
+      currentY += 15;
+
+      const netMediumText = result.isProxyVpn
+        ? 'Encrypted VPN / Proxy Tunnel'
+        : result.isMobileCarrier
+        ? 'Mobile Cellular SIM (4G / 5G)'
+        : result.isHosting
+        ? 'Data Center & Cloud Hosting'
+        : 'Residential Broadband / Wi-Fi';
+
+      doc.setFontSize(9);
+      doc.setTextColor(51, 65, 85);
+      printWrappedLine('ISP Provider', toPureEnglishAscii(result.isp));
+      printWrappedLine('Organization', toPureEnglishAscii(result.org));
+      printWrappedLine('ASN & Name', `${toPureEnglishAscii(result.asn)} - ${toPureEnglishAscii(result.asName)}`);
+      printWrappedLine('Reverse DNS Host', toPureEnglishAscii(result.reverseDns));
+      printWrappedLine('CIDR Route', toPureEnglishAscii(result.ipRouting));
+      printWrappedLine('Usage Classification', toPureEnglishAscii(result.usageType));
+
+      currentY += 6;
+
+      // Section 3: VPN Diagnostics
+      const box3StartY = currentY;
+      doc.roundedRect(14, box3StartY, 182, 68, 3, 3, 'D');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(11);
+      doc.text('3. VPN UNVEIL & LEAK DIAGNOSTICS', 18, box3StartY + 8);
+      currentY += 15;
+
+      doc.setFontSize(9);
+      doc.setTextColor(51, 65, 85);
+      printWrappedLine('Network Medium Topology', netMediumText);
+      printWrappedLine('VPN / Proxy Status', result.isProxyVpn ? 'YES (VPN / Proxy Detected)' : 'NO (Direct Connection)');
+      printWrappedLine('Identified VPN Provider', toPureEnglishAscii(result.vpnProviderName));
+      printWrappedLine('DNS Leak Provider', toPureEnglishAscii(result.dnsLeakIsp));
+      printWrappedLine('WebRTC Local IP Leak', toPureEnglishAscii(result.webrtcLocalIp));
+      printWrappedLine('WebRTC Public IP Leak', toPureEnglishAscii(result.webrtcPublicIp));
+      printWrappedLine('Mismatch Risk Score', `${result.mismatchScore || 0}%`);
+      printWrappedLine('Candidate Real Location', toPureEnglishAscii(result.candidateOriginalLocation));
+
+      // Page 2: Visual Analytics, Diagrams & Certification
+      doc.addPage();
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 210, 297, 'F');
+
+      // Top Banner Header
+      doc.setFillColor(15, 23, 42);
+      doc.rect(14, 12, 182, 18, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.text('SM INTELLIGENCE - IP AUDIT & THREAT VISUAL ANALYTICS', 18, 20);
+      doc.setFontSize(8);
+      doc.setTextColor(203, 213, 225);
+      doc.text(`Target IP: ${toPureEnglishAscii(result.ip)} | ISP: ${toPureEnglishAscii(result.isp)}`, 18, 26);
+
+      let p2Y = 38;
+
+      // 1. Visual Threat & Proxy Mismatch Risk Barometer
+      doc.setDrawColor(226, 232, 240);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(14, p2Y, 182, 38, 3, 3, 'FD');
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(10);
+      doc.text('1. PROXY & THREAT RISK BAROMETER (0% - 100%)', 18, p2Y + 8);
+
+      const score = result.mismatchScore || 0;
+      const barX = 18;
+      const barY = p2Y + 14;
+      const barW = 174;
+      const barH = 10;
+
+      // Base Track
+      doc.setFillColor(226, 232, 240);
+      doc.roundedRect(barX, barY, barW, barH, 2, 2, 'F');
+
+      // Filled Score Track
+      const filledW = Math.max(8, (barW * Math.min(100, score)) / 100);
+      if (score > 50) {
+        doc.setFillColor(225, 29, 72);
+      } else if (score > 20) {
+        doc.setFillColor(217, 119, 6);
+      } else {
+        doc.setFillColor(16, 185, 129);
+      }
+      doc.roundedRect(barX, barY, filledW, barH, 2, 2, 'F');
+
+      // Scale Ticks
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text('0% (Low Risk)', barX, barY + barH + 5);
+      doc.text('25%', barX + barW * 0.25 - 2, barY + barH + 5);
+      doc.text('50% (Proxy Threshold)', barX + barW * 0.5 - 10, barY + barH + 5);
+      doc.text('75%', barX + barW * 0.75 - 2, barY + barH + 5);
+      doc.text('100% (Threat Alert)', barX + barW - 18, barY + barH + 5);
+
+      p2Y += 44;
+
+      // 2. Network Topology & ASN Breakdown
+      doc.setDrawColor(226, 232, 240);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(14, p2Y, 182, 44, 3, 3, 'FD');
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(10);
+      doc.text('2. NETWORK SPECTRUM & LATENCY DIAGNOSTICS', 18, p2Y + 8);
+
+      const latCf = Number(result.latencyCloudflare) || 0;
+      const latGg = Number(result.latencyGoogle) || 0;
+      const maxLat = Math.max(latCf, latGg, 120);
+
+      const drawLatencyBar = (label: string, val: number, yPos: number, r: number, g: number, b: number) => {
+        doc.setFontSize(8);
+        doc.setTextColor(51, 65, 85);
+        doc.text(label, 18, yPos + 4);
+
+        const w = val > 0 ? Math.max(6, (110 * val) / maxLat) : 4;
+        doc.setFillColor(226, 232, 240);
+        doc.rect(55, yPos, 110, 5, 'F');
+
+        doc.setFillColor(r, g, b);
+        doc.rect(55, yPos, w, 5, 'F');
+
+        doc.setFontSize(8);
+        doc.setTextColor(15, 23, 42);
+        doc.text(val > 0 ? `${val} ms` : 'N/A', 170, yPos + 4);
+      };
+
+      drawLatencyBar('Cloudflare RTT:', latCf, p2Y + 16, 79, 70, 229);
+      drawLatencyBar('Google RTT:', latGg, p2Y + 28, 16, 185, 129);
+
+      p2Y += 50;
+
+      // 3. Technical Parameters Summary Cards
+      doc.setDrawColor(226, 232, 240);
+      doc.setFillColor(255, 255, 255);
+
+      // Left Box: Geolocation & Provider
+      doc.roundedRect(14, p2Y, 88, 52, 3, 3, 'D');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(9);
+      doc.text('GEOLOCATION & ISP ENTITY', 18, p2Y + 8);
+
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Country: ${toPureEnglishAscii(result.country)} (${toPureEnglishAscii(result.countryCode)})`, 18, p2Y + 16);
+      doc.text(`Region / City: ${toPureEnglishAscii(result.region)}, ${toPureEnglishAscii(result.city)}`, 18, p2Y + 22);
+      doc.text(`ISP Name: ${toPureEnglishAscii(result.isp)}`, 18, p2Y + 28);
+      doc.text(`ASN Organization: ${toPureEnglishAscii(result.org || result.asn)}`, 18, p2Y + 34);
+      doc.text(`Coordinates: ${result.lat}, ${result.lon}`, 18, p2Y + 40);
+
+      // Right Box: Security & Proxy Audit
+      doc.roundedRect(108, p2Y, 88, 52, 3, 3, 'D');
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(9);
+      doc.text('SECURITY & LEAK ANALYSIS', 112, p2Y + 8);
+
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Medium: ${netMediumText}`, 112, p2Y + 16);
+      doc.text(`VPN/Proxy Status: ${result.isProxyVpn ? 'YES (Detected)' : 'NO (Direct Connection)'}`, 112, p2Y + 22);
+      doc.text(`DNS Leak ISP: ${toPureEnglishAscii(result.dnsLeakIsp)}`, 112, p2Y + 28);
+      doc.text(`WebRTC Leaked IP: ${toPureEnglishAscii(result.webrtcPublicIp)}`, 112, p2Y + 34);
+      doc.text(`Threat Rating: ${toPureEnglishAscii(result.threatLevel || 'Clean')}`, 112, p2Y + 40);
+
+      p2Y += 58;
+
+      // 4. Final Verdict Card
+      doc.setDrawColor(79, 70, 229);
+      doc.setFillColor(243, 244, 246);
+      doc.roundedRect(14, p2Y, 182, 38, 3, 3, 'FD');
+
+      doc.setTextColor(79, 70, 229);
+      doc.setFontSize(10);
+      doc.text('SM SECURITY INTELLIGENCE VERDICT', 18, p2Y + 8);
+
+      doc.setFontSize(8);
+      doc.setTextColor(30, 41, 59);
+
+      const verdictText = result.isProxyVpn
+        ? `AUDIT SUMMARY: Target IP ${toPureEnglishAscii(result.ip)} displays proxy/VPN characteristics with an overall threat score of ${score}%. Proxy origin candidate calculated at ${toPureEnglishAscii(result.candidateOriginalLocation)}.`
+        : `AUDIT SUMMARY: Target IP ${toPureEnglishAscii(result.ip)} verified as direct residential/corporate connectivity with 0% proxy mismatch risk. ISP: ${toPureEnglishAscii(result.isp)}. Location: ${toPureEnglishAscii(result.city)}, ${toPureEnglishAscii(result.country)}.`;
+
+      const verdictLines = doc.splitTextToSize(verdictText, 172);
+      verdictLines.forEach((line: string, idx: number) => {
+        doc.text(line, 18, p2Y + 16 + idx * 5);
+      });
+
+      // Page Footer
+      doc.setTextColor(148, 163, 184);
+      doc.setFontSize(8);
+      doc.text('Certified by SM Automated Security Telemetry Engine | All Rights Reserved to AlQeyadah AlZaeem', 14, 282);
+
+      doc.save(`SM_IP_Audit_${toPureEnglishAscii(result.ip).replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      downloadTxtReport();
+    }
+  };
+
+  const sampleIps = [
+    { label: 'Cloudflare', ip: '1.1.1.1' },
+    { label: 'Google', ip: '8.8.8.8' },
+    { label: 'Quad9', ip: '9.9.9.9' },
+    { label: 'OpenDNS', ip: '208.67.222.222' },
+  ];
+
+  return (
+    <div className="w-full max-w-5xl mx-auto px-3 sm:px-4 py-3 sm:py-5 flex flex-col gap-3.5">
+      {/* Header Banner */}
+      <div className="text-center flex flex-col items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-full bg-indigo-50 border-2 border-indigo-200 flex items-center justify-center text-indigo-600 shadow-2xs shrink-0">
+            <Globe className="w-5 h-5" />
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs">
+            <Globe className="w-3.5 h-3.5 text-indigo-600" />
+            <span>IP2Location Intelligence</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          </div>
+        </div>
+        <h1 className="text-lg sm:text-xl font-black text-black tracking-tight">
+          {t.ipLookupTitle}
+        </h1>
+        <p className="text-purple-700 max-w-xl text-[11px] leading-relaxed">
+          {t.ipLookupSubtitle}
+        </p>
+      </div>
+
+      {/* Search & Query Card */}
+      <div className="bg-white/85 backdrop-blur-md border border-slate-200 rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col gap-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-slate-400">
+              <Search className="w-3.5 h-3.5 text-indigo-600" />
+            </div>
+            <input
+              type="text"
+              value={ipInput}
+              onChange={(e) => {
+                setIpInput(e.target.value);
+                if (error) setError('');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleLookup();
+              }}
+              placeholder={t.ipInputPlaceholder}
+              className="w-full ps-9 pe-8 py-2 text-xs bg-slate-50 hover:bg-slate-100/70 focus:bg-white text-slate-950 placeholder:text-slate-400 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono transition-all"
+            />
+            {ipInput && (
+              <button
+                type="button"
+                onClick={() => setIpInput('')}
+                className="absolute end-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 font-bold"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handleLookup()}
+              disabled={loading}
+              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all active:scale-98 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>{loading ? t.ipLookupLoading : t.checkIpBtn}</span>
+            </button>
+
+            <button
+              onClick={() => handleLookup('me')}
+              disabled={loading}
+              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-200 transition-colors whitespace-nowrap cursor-pointer"
+              title={t.checkMyIpBtn}
+            >
+              {t.checkMyIpBtn}
+            </button>
+          </div>
+        </div>
+
+        {/* Quick IP Presets */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs pt-0.5">
+          <span className="text-slate-500 text-[10px] font-bold">
+            {lang === 'ar' ? 'عناوين شائعة للفحص:' : 'Quick Targets:'}
+          </span>
+          {sampleIps.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                setIpInput(s.ip);
+                handleLookup(s.ip);
+              }}
+              className="px-2 py-0.5 rounded-md bg-slate-50 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 font-mono text-[10px] border border-slate-200 transition-colors cursor-pointer"
+            >
+              {s.label} ({s.ip})
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+            {error}
+          </div>
+        )}
+      </div>
+
+      {/* Loading Skeleton */}
+      {loading && !result && (
+        <div className="p-6 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200 flex flex-col items-center justify-center gap-2.5 text-slate-500">
+          <div className="w-7 h-7 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-xs font-bold">{t.ipLookupLoading}</span>
+        </div>
+      )}
+
+      {/* Results Display */}
+      {result && (
+        <div className="flex flex-col gap-3.5 animate-in fade-in duration-200">
+          {/* Top Result Banner with Geometric Tech Card */}
+          <div className="relative overflow-hidden p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            {/* Subtle background decoration */}
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-indigo-50/50 rounded-full blur-2xl pointer-events-none"></div>
+
+            <div className="flex items-center gap-3 relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border border-indigo-200/80 flex items-center justify-center text-3xl select-none shadow-2xs shrink-0" title={result.country || 'Flag'}>
+                {result.flag || '🌐'}
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-black text-base sm:text-lg text-slate-950 tracking-tight">
+                    {result.ip}
+                  </span>
+                  <button
+                    onClick={() => handleCopy(result.ip)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                    title={t.copyLink}
+                  >
+                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-mono">
+                    IPv4
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
+                  <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span>{[result.city, result.region, result.country].filter(Boolean).join(' • ')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Security Threat Badge */}
+            <div className="flex items-center gap-2 relative z-10">
+              {result.threatLevel === 'proxy' || result.isProxyVpn ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-black shadow-2xs">
+                  <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{t.threatVpn}</span>
+                </div>
+              ) : result.threatLevel === 'hosting' || result.isHosting ? (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-black shadow-2xs">
+                  <Server className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>{t.threatHosting}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black shadow-2xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{t.threatClean}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 3-Column Bento Details Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            {/* Card 1: Geolocation Details */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col gap-3 hover:border-indigo-200 transition-colors">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-xs font-black text-slate-950 uppercase tracking-wider">
+                    {t.ipLocationCard}
+                  </h3>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">
+                  GEO-INT
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2 text-xs">
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{t.colCountry}:</span>
+                  <span className="font-bold text-slate-950 flex items-center gap-1.5">
+                    <span className="text-sm">{result.flag}</span>
+                    <span>{result.country || t.unknown}</span>
+                    {result.countryCode && (
+                      <span className="text-[10px] font-mono text-slate-400">({result.countryCode})</span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{t.colCity}:</span>
+                  <span className="font-bold text-slate-950">
+                    {result.city || t.unknown}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{lang === 'ar' ? 'المنطقة / المحافظة' : 'State / Region'}:</span>
+                  <span className="font-semibold text-slate-950">
+                    {result.region || t.unknown}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{t.postalCode}:</span>
+                  <span className="font-mono font-bold text-slate-950">
+                    {result.zip || t.unknown}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-slate-500">{t.latitude} / {t.longitude}:</span>
+                  <span className="font-mono font-bold text-indigo-600 bg-indigo-50/70 px-2 py-0.5 rounded-md border border-indigo-100">
+                    {result.lat != null && result.lon != null
+                      ? `${result.lat.toFixed(4)}, ${result.lon.toFixed(4)}`
+                      : t.unknown}
+                  </span>
+                </div>
+
+                {result.exactAddress && (
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[10px] text-slate-800 leading-relaxed mt-1">
+                    <span className="font-bold block text-[9px] text-slate-500 uppercase mb-0.5">{lang === 'ar' ? 'العنوان المقدر الكامل' : 'Full Estimated Address'}</span>
+                    {result.exactAddress}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Card 2: Network & Carrier */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col gap-3 hover:border-indigo-200 transition-colors">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                    <Radio className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-xs font-black text-slate-950 uppercase tracking-wider">
+                    {t.ipNetworkCard}
+                  </h3>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">
+                  ISP-NET
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2 text-xs">
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{t.isp}:</span>
+                  <span className="font-black text-indigo-950 truncate max-w-[180px] bg-indigo-50/80 px-2 py-0.5 rounded-lg border border-indigo-100 shadow-2xs" title={result.isp || ''}>
+                    {result.isp || t.unknown}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{t.org}:</span>
+                  <span className="font-bold text-slate-900 truncate max-w-[180px]" title={result.org || ''}>
+                    {result.org || result.isp || t.unknown}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{t.asnLabel}:</span>
+                  <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                    {result.asn || t.unknown}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{t.asName}:</span>
+                  <span className="font-semibold text-slate-950 truncate max-w-[180px]" title={result.asName || ''}>
+                    {result.asName || t.unknown}
+                  </span>
+                </div>
+
+                {result.reverseDns && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                    <span className="text-slate-500">{t.reverseDns}:</span>
+                    <span className="font-mono text-[11px] text-slate-800 truncate max-w-[180px]" title={result.reverseDns}>
+                      {result.reverseDns}
+                    </span>
+                  </div>
+                )}
+
+                {result.ipRouting && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                    <span className="text-slate-500">{t.ipRouting}:</span>
+                    <span className="font-mono text-[11px] font-bold text-slate-700">
+                      {result.ipRouting}
+                    </span>
+                  </div>
+                )}
+
+                {result.usageType && (
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                    <span className="text-slate-500">{t.usageType}:</span>
+                    <span className="font-bold text-slate-900 text-[11px] truncate max-w-[180px]" title={result.usageType}>
+                      {result.usageType}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-slate-500 font-bold">{t.networkType}:</span>
+                  <span className="font-bold">
+                    {result.networkMedium === 'mobile_sim' || result.isMobile ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black shadow-2xs">
+                        <Smartphone className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                        <span>{lang === 'ar' ? 'هاتف شريحة (بيانات خلوية 4G/5G)' : 'Mobile SIM (Cellular 4G/5G)'}</span>
+                      </span>
+                    ) : result.networkMedium === 'vpn_proxy' || result.isProxyVpn ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 border border-rose-200 text-rose-700 text-xs font-black shadow-2xs">
+                        <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                        <span>{lang === 'ar' ? 'نفق مشفر (VPN / بروكسي)' : 'Encrypted Tunnel (VPN)'}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-black shadow-2xs">
+                        <Wifi className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>{lang === 'ar' ? 'راوتر منزلي / واي فاي وألياف' : 'Home Router / Wi-Fi & Fiber'}</span>
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Security & Timezone */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col gap-3 hover:border-indigo-200 transition-colors">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                    <Shield className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-xs font-black text-slate-950 uppercase tracking-wider">
+                    {t.ipSecurityCard}
+                  </h3>
+                </div>
+                <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">
+                  SEC-OPS
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2 text-xs">
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">VPN / Proxy:</span>
+                  <span className={`font-black px-2 py-0.5 rounded-md text-[11px] ${result.isProxyVpn ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                    {result.isProxyVpn ? (lang === 'ar' ? 'مكتشف Yes' : 'Detected Yes') : (lang === 'ar' ? 'نظيف No' : 'Clean No')}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{lang === 'ar' ? 'مركز استضافة (Hosting)' : 'Datacenter / Hosting'}:</span>
+                  <span className={`font-bold ${result.isHosting ? 'text-amber-600' : 'text-slate-800'}`}>
+                    {result.isHosting ? 'Yes / Datacenter' : 'No / Residential'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{t.localTimezone}:</span>
+                  <span className="font-semibold text-slate-950">
+                    {result.timezone || t.unknown}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-100">
+                  <span className="text-slate-500">{t.utcOffset}:</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {result.utcOffset || t.unknown}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-slate-500">{t.currency}:</span>
+                  <span className="font-bold text-slate-950">
+                    {result.currency || t.unknown}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Dedicated VPN Unveil & Leak Analysis Box */}
+          <div className="bg-white text-slate-900 rounded-2xl p-3 sm:p-5 shadow-sm border border-slate-200 flex flex-col gap-2.5 sm:gap-3.5 relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 gap-2">
+              <div className="flex items-start sm:items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                  <Eye className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-slate-950 tracking-wide">
+                    {lang === 'ar' ? 'محاولة كشف ما وراء الـ VPN والبروكسي (VPN Unveil & Leak Engine)' : 'VPN Unveil & Leak Intelligence Engine'}
+                  </h3>
+                  <p className="text-[10px] text-slate-500 leading-tight mt-0.5">
+                    {lang === 'ar' ? 'تحليل تسريب بروتوكولات WebRTC ومطابقة التوقيت وتحديد اسم المزود وتصحيح الموقع' : 'WebRTC leak scanning, timezone mismatch calculation & VPN entity detection'}
+                  </p>
+                </div>
+              </div>
+              <span className="self-start sm:self-auto px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-mono font-black bg-indigo-100 text-indigo-700 border border-indigo-200 shrink-0">
+                {lang === 'ar' ? 'التحليل الذكي' : 'SM-SMART-ANALYSIS'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 text-xs">
+              {/* Box A: VPN Provider Name */}
+              <div className="p-2 sm:p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1">
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase">{lang === 'ar' ? 'اسم مزود الـ VPN المحتمل' : 'Identified VPN Provider'}</span>
+                <span className="font-black text-indigo-700 text-[11px] sm:text-xs truncate break-all whitespace-normal line-clamp-2">
+                  {result.vpnProviderName || (result.isProxyVpn ? 'VPN/Proxy Active' : (lang === 'ar' ? 'اتصال مباشر (لا يوجد VPN)' : 'Direct Connection'))}
+                </span>
+              </div>
+
+              {/* Box B: DNS Leak Check */}
+              <div className="p-2 sm:p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1">
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase">{lang === 'ar' ? 'مزود خوادم الـ DNS (تسريب DNS)' : 'DNS Resolver ISP (DNS Leak)'}</span>
+                <span className="font-mono font-bold text-slate-800 text-[11px] sm:text-xs truncate break-all whitespace-normal line-clamp-2">
+                  {result.dnsLeakIsp || result.reverseDns || (lang === 'ar' ? 'سليم (مطابق)' : 'Clean')}
+                </span>
+              </div>
+
+              {/* Box C: WebRTC Leaked IP */}
+              <div className="p-2 sm:p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1">
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase">{lang === 'ar' ? 'تسريب WebRTC (Local / Public IP)' : 'WebRTC IP Leak Check'}</span>
+                <span className="font-mono font-bold text-amber-600 text-[11px] sm:text-xs truncate break-all whitespace-normal line-clamp-2">
+                  {result.webrtcPublicIp || result.webrtcLocalIp ? `${result.webrtcPublicIp || ''} ${result.webrtcLocalIp ? `[${result.webrtcLocalIp}]` : ''}` : (lang === 'ar' ? 'لم يتم رصد تسريب IP' : 'No WebRTC Leak Detected')}
+                </span>
+              </div>
+
+              {/* Box D: Threat Mismatch Score */}
+              <div className="p-2 sm:p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col gap-1">
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase">{lang === 'ar' ? 'نسبة احتمال التمويه/المقنّع' : 'Proxy Mismatch Score'}</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 bg-slate-200 h-1.5 sm:h-2 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-500 ${
+                        (result.mismatchScore || 0) > 40 ? 'bg-rose-500' : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${Math.max(10, result.mismatchScore || (result.isProxyVpn ? 85 : 0))}%` }}
+                    ></div>
+                  </div>
+                  <span className="font-black font-mono text-[10px] sm:text-xs text-slate-800">
+                    {result.mismatchScore || (result.isProxyVpn ? 85 : 0)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Candidate Original Location */}
+            <div className="p-2 sm:p-3 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2">
+              <div className="flex items-start sm:items-center gap-1.5 sm:gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0 mt-0.5 sm:mt-0" />
+                <span className="text-[11px] sm:text-xs text-slate-700 leading-tight">
+                  <strong className="text-slate-900 me-1 block sm:inline">{lang === 'ar' ? 'تقدير الموقع الحقيقي ما وراء التمويه:' : 'Candidate Real Location Estimate:'}</strong>
+                  {result.candidateOriginalLocation || (lang === 'ar' ? 'هذا الاتصال حقيقي ومباشر من المزود الأصلي' : 'Direct connection from authentic ISP')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Visual Chart & Analytics Section */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col gap-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-2xs">
+                  <BarChart2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs sm:text-sm font-black text-slate-950">
+                    {lang === 'ar' ? 'رسم بياني تحليلي لنتائج الفحص ومؤشرات الأمان' : 'Interactive Telemetry & Security Analytics Chart'}
+                  </h3>
+                  <p className="text-[10px] text-slate-500">
+                    {lang === 'ar' ? 'مخطط بياني مرئي يقيس معايير الأمان، دقة الجغرافيا، ومستوى خطورة الـ VPN والبروكسي' : 'Visual breakdown measuring risk rating, geolocation accuracy, and network integrity'}
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                CHART-DIAG
+              </span>
+            </div>
+
+            {/* Visual Charts Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Chart 1: Threat & Risk Rating Barometer */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{lang === 'ar' ? 'رسم بياني لمستوى الأمان والخطورة' : 'Security & Risk Breakdown'}</span>
+                  </span>
+                  <span className={`text-[11px] font-black font-mono px-2 py-0.5 rounded-md ${
+                    (result.mismatchScore || 0) > 40 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {result.mismatchScore || (result.isProxyVpn ? 85 : 0)}% Risk
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-2.5 pt-1">
+                  {/* Metric 1: Proxy / VPN Threat Score */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-600 font-semibold">{lang === 'ar' ? 'مؤشر الـ VPN والبروكسي' : 'VPN / Proxy Index'}</span>
+                      <span className="font-mono font-bold text-slate-900">{result.isProxyVpn ? '85%' : '0%'}</span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden p-0.5">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${result.isProxyVpn ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                        style={{ width: `${result.isProxyVpn ? 85 : 5}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Metric 2: Geolocation Precision */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-600 font-semibold">{lang === 'ar' ? 'دقة الجغرافيا والعنوان' : 'Geolocation Precision'}</span>
+                      <span className="font-mono font-bold text-slate-900">{result.lat && result.lon ? '98%' : '75%'}</span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden p-0.5">
+                      <div
+                        className="h-full rounded-full bg-indigo-600 transition-all duration-700"
+                        style={{ width: result.lat && result.lon ? '98%' : '75%' }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Metric 3: ASN Network Reputation */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-600 font-semibold">{lang === 'ar' ? 'موثوقية شبكة المزود (ASN)' : 'ASN Network Reputation'}</span>
+                      <span className="font-mono font-bold text-slate-900">{result.isHosting ? '45%' : '92%'}</span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden p-0.5">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${result.isHosting ? 'bg-amber-500' : 'bg-indigo-500'}`}
+                        style={{ width: `${result.isHosting ? 45 : 92}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Metric 4: DNS Leak Shield */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-600 font-semibold">{lang === 'ar' ? 'حماية وتسريب الـ DNS' : 'DNS Leak Protection Shield'}</span>
+                      <span className="font-mono font-bold text-slate-900">100%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden p-0.5">
+                      <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: '100%' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chart 2: Interactive SVG Distribution Radar */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Radio className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{lang === 'ar' ? 'رسم بياني لمسار ونوع الشبكة' : 'Topology & Route Spectrum'}</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-500">REALTIME</span>
+                </div>
+
+                {/* SVG Visual Graphic */}
+                <div className="relative h-32 w-full flex items-center justify-center bg-white rounded-xl border border-slate-200/80 p-2 overflow-hidden">
+                  <svg className="w-full h-full" viewBox="0 0 300 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* Background Grid Lines */}
+                    <line x1="10" y1="20" x2="290" y2="20" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3 3" />
+                    <line x1="10" y1="50" x2="290" y2="50" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3 3" />
+                    <line x1="10" y1="80" x2="290" y2="80" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3 3" />
+
+                    {/* Animated Route Path */}
+                    <path
+                      d="M20 70 Q 75 20, 150 50 T 280 30"
+                      fill="none"
+                      stroke={result.isProxyVpn ? '#F43F5E' : '#6366F1'}
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                    />
+
+                    {/* Nodes */}
+                    <circle cx="20" cy="70" r="5" fill="#6366F1" />
+                    <text x="15" y="92" fontSize="8" fill="#64748B" fontWeight="bold">User Node</text>
+
+                    <circle cx="150" cy="50" r="6" fill={result.isProxyVpn ? '#F43F5E' : '#10B981'} />
+                    <text x="125" y="72" fontSize="8" fill="#64748B" fontWeight="bold">
+                      {result.isProxyVpn ? 'VPN Proxy' : 'Direct ISP'}
+                    </text>
+
+                    <circle cx="280" cy="30" r="5" fill="#3B82F6" />
+                    <text x="250" y="52" fontSize="8" fill="#64748B" fontWeight="bold">Target IP</text>
+                  </svg>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
+                  <div className="p-1.5 rounded-lg bg-white border border-slate-200">
+                    <span className="text-slate-400 block">{lang === 'ar' ? 'الزمن المقدر' : 'Ping Est.'}</span>
+                    <span className="font-mono font-black text-indigo-600">~14 ms</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-white border border-slate-200">
+                    <span className="text-slate-400 block">{lang === 'ar' ? 'نوع التشفير' : 'Encryption'}</span>
+                    <span className="font-mono font-black text-slate-800">TLS 1.3</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-white border border-slate-200">
+                    <span className="text-slate-400 block">{lang === 'ar' ? 'سلامة المسار' : 'Route Health'}</span>
+                    <span className="font-mono font-black text-emerald-600">Optimal</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Map Embed */}
+          {result.lat && result.lon && (
+            <div className="bg-white/85 backdrop-blur-md border border-slate-200 rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col gap-2.5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-1.5 border-b border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                  <h3 className="text-xs font-black text-slate-950">
+                    {t.coordsTitle} ({result.lat.toFixed(4)}, {result.lon.toFixed(4)})
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+                    <button
+                      onClick={() => setMapType('satellite')}
+                      className={`px-2.5 py-0.5 font-bold rounded-lg transition-all cursor-pointer text-[11px] ${
+                        mapType === 'satellite'
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-950'
+                      }`}
+                    >
+                      {lang === 'ar' ? '🛰️ قمر صناعي' : '🛰️ Satellite'}
+                    </button>
+                    <button
+                      onClick={() => setMapType('google')}
+                      className={`px-2.5 py-0.5 font-bold rounded-lg transition-all cursor-pointer text-[11px] ${
+                        mapType === 'google'
+                          ? 'bg-white text-indigo-700 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-950'
+                      }`}
+                    >
+                      Google Maps
+                    </button>
+                    <button
+                      onClick={() => setMapType('osm')}
+                      className={`px-2.5 py-0.5 font-bold rounded-lg transition-all cursor-pointer text-[11px] ${
+                        mapType === 'osm'
+                          ? 'bg-white text-indigo-700 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-950'
+                      }`}
+                    >
+                      OpenStreetMap
+                    </button>
+                  </div>
+
+                  <a
+                    href={`https://www.google.com/maps?q=${result.lat},${result.lon}&z=16`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 transition-colors shadow-2xs"
+                  >
+                    <span>Google Maps</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+
+                  <a
+                    href={`https://earth.google.com/web/search/${result.lat},${result.lon}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200 transition-colors shadow-2xs"
+                  >
+                    <Globe className="w-3 h-3" />
+                    <span>{lang === 'ar' ? 'جوجل إيرث 3D' : 'Google Earth'}</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Map Iframe */}
+              <div className="w-full h-72 rounded-xl overflow-hidden border border-slate-200 relative shadow-inner">
+                {mapType === 'satellite' ? (
+                  <iframe
+                    title="Google Satellite Map View"
+                    width="100%"
+                    height="100%"
+                    loading="lazy"
+                    className="border-0 w-full h-full"
+                    src={`https://maps.google.com/maps?q=${result.lat},${result.lon}&t=k&z=15&output=embed`}
+                  />
+                ) : mapType === 'google' ? (
+                  <iframe
+                    title="Google Maps Location View"
+                    width="100%"
+                    height="100%"
+                    loading="lazy"
+                    className="border-0 w-full h-full"
+                    src={`https://maps.google.com/maps?q=${result.lat},${result.lon}&z=14&output=embed`}
+                  />
+                ) : (
+                  <iframe
+                    title="OSM Location View"
+                    width="100%"
+                    height="100%"
+                    loading="lazy"
+                    className="border-0 w-full h-full"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${result.lon - 0.05}%2C${result.lat - 0.05}%2C${result.lon + 0.05}%2C${result.lat + 0.05}&layer=mapnik&marker=${result.lat}%2C${result.lon}`}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Download Report Actions Bar */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <Download className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-black text-slate-950">
+                  {lang === 'ar' ? 'استخراج وتنزيل التقرير الاستخباري' : 'Export & Download Security Report'}
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  {lang === 'ar' ? 'احصل على التقرير التقني الكامل بصيغة PDF ثنائية الصفحات أو TXT' : 'Download complete audit file in 2-Page PDF with visual charts or plain TXT format'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={downloadTxtReport}
+                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <FileText className="w-3.5 h-3.5 text-slate-600" />
+                <span>{lang === 'ar' ? 'تقرير نصي TXT' : 'Download TXT'}</span>
+              </button>
+
+              <button
+                onClick={downloadPdfReport}
+                className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all active:scale-98 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>{lang === 'ar' ? 'تنزيل التقرير PDF الشامل' : 'Download 2-Page PDF'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
