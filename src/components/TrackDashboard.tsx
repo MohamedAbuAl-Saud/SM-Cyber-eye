@@ -88,6 +88,49 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
     fetchClckUrl();
   }, [link.code, directTrackingUrl]);
 
+  const handleDownloadTrackingPdf = async (code: string) => {
+    try {
+      const url = `/api/pdf/generate/${code}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Failed to generate PDF: ${res.status}`);
+      }
+
+      let downloadFilename = '';
+      const customFileName = res.headers.get('x-file-name');
+      const disposition = res.headers.get('content-disposition');
+      if (customFileName) {
+        downloadFilename = customFileName;
+      } else if (disposition && disposition.includes('filename=')) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+        if (matches != null && matches[1]) {
+          downloadFilename = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      if (!downloadFilename || !downloadFilename.endsWith('.pdf')) {
+        const randNum = Math.floor(100000 + Math.random() * 900000);
+        downloadFilename = `Document_Verification_#${randNum}.pdf`;
+      }
+
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = downloadUrl;
+      a.download = downloadFilename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
+      }, 500);
+    } catch (err) {
+      console.error('Download PDF error:', err);
+      window.location.href = `/api/pdf/generate/${code}`;
+    }
+  };
+
   // Clean clck.ru host & path for username-style URL masking
   const activeClckUrl = clckShortUrl || `https://clck.ru/--?url=${encodeURIComponent(directTrackingUrl)}`;
   const clckRaw = activeClckUrl.replace(/^https?:\/\//, '');
@@ -277,18 +320,31 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
               </div>
             </div>
 
-            {/* Original Target URL */}
-            <div className="flex flex-col gap-0.5 text-xs pt-1.5 border-t border-slate-100">
-              <span className="text-slate-500 font-semibold text-[10px]">{t.originalUrlTitle}:</span>
-              <a
-                href={link.originalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-indigo-600 hover:underline font-mono truncate max-w-2xl inline-flex items-center gap-1 font-medium text-xs"
+            {/* Original Target URL & PDF Trap Download Option */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs pt-1.5 border-t border-slate-100">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-slate-500 font-semibold text-[10px]">{t.originalUrlTitle}:</span>
+                <a
+                  href={link.originalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-600 hover:underline font-mono truncate max-w-xl inline-flex items-center gap-1 font-medium text-xs"
+                >
+                  <span>{link.originalUrl}</span>
+                  <ExternalLink className="w-3 h-3 shrink-0 text-indigo-500" />
+                </a>
+              </div>
+
+              {/* Dynamic PDF Trap Download Button for IP Link */}
+              <button
+                type="button"
+                onClick={() => handleDownloadTrackingPdf(link.code)}
+                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 border border-slate-200 transition-all text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 w-fit"
+                title={lang === 'ar' ? 'تنزيل ملف PDF ملغّم يرتبط تلقائياً بهذا الرابط' : 'Download armed PDF linked to this tracking code'}
               >
-                <span>{link.originalUrl}</span>
-                <ExternalLink className="w-3 h-3 shrink-0 text-indigo-500" />
-              </a>
+                <FileDown className="w-3.5 h-3.5 text-indigo-600" />
+                <span>{lang === 'ar' ? 'تنزيل كملف PDF ملغّم (شاشة كاملة)' : 'Export Armed PDF (Full Screen Link)'}</span>
+              </button>
             </div>
           </div>
         ) : (
@@ -307,43 +363,19 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
               </div>
               <p className="text-slate-600 text-xs leading-relaxed max-w-sm font-medium">
                 {lang === 'ar' 
-                  ? 'هذا الملف يحتوي على كود صامت (Canary Token) يجمع البيانات فور فتحه. لا تقم بتغيير محتوى الملف.' 
-                  : 'This file contains a silent Canary Token that collects telemetry upon opening. Do not modify the file content.'}
+                  ? 'هذا الملف يحتوي على كود صامت ومساحة شاشة كاملة موجهة لرابط التتبع فور فتحه أو الضغط على أي جزء منه.' 
+                  : 'This file contains silent telemetry tokens and a full-screen interactive hotspot routing to your tracking engine.'}
               </p>
             </div>
 
-            <a
-              href={`/api/pdf/generate/${link.code}`}
-              download={`tracking_report_${link.code}.pdf`}
-              onClick={async (e) => {
-                // If direct link click behaves normally in browser
-                try {
-                  const url = `/api/pdf/generate/${link.code}`;
-                  const res = await fetch(url);
-                  if (res.ok) {
-                    const blob = await res.blob();
-                    const downloadUrl = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = downloadUrl;
-                    a.download = `tracking_report_${link.code}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    setTimeout(() => {
-                      document.body.removeChild(a);
-                      window.URL.revokeObjectURL(downloadUrl);
-                    }, 500);
-                    e.preventDefault();
-                  }
-                } catch {
-                  // Fallback: let standard browser anchor navigation execute
-                }
-              }}
+            <button
+              type="button"
+              onClick={() => handleDownloadTrackingPdf(link.code)}
               className="w-full sm:w-auto px-8 py-4 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/25 text-sm font-black flex items-center justify-center gap-2.5 transition-all cursor-pointer active:scale-95 group shrink-0 relative z-10 text-decoration-none"
             >
               <FileDown className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
               <span>{t.pdfDownloadBtn}</span>
-            </a>
+            </button>
           </div>
         )}
 

