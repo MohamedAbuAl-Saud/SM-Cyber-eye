@@ -23,6 +23,7 @@ import {
   Wifi,
   FileDown,
   FileText,
+  Camera,
 } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { TrackingLink, VisitRecord } from '../types';
@@ -53,6 +54,18 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
   const t = translations[lang];
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<VisitRecord | null>(null);
+
+  // Sync selectedVisit when real-time updates arrive
+  useEffect(() => {
+    if (selectedVisit) {
+      const updated = visits.find(
+        (v) => v.id === selectedVisit.id || (v.visitorToken && v.visitorToken === selectedVisit.visitorToken)
+      );
+      if (updated && (updated.capturedPhotos?.length || 0) !== (selectedVisit.capturedPhotos?.length || 0)) {
+        setSelectedVisit(updated);
+      }
+    }
+  }, [visits, selectedVisit]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -250,6 +263,8 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
                 ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                 : link.mode === 'pdf'
                 ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                : link.mode === 'camera'
+                ? 'bg-rose-50 text-rose-700 border border-rose-200'
                 : 'bg-slate-100 text-slate-800 border border-slate-200'
             }`}
           >
@@ -262,6 +277,11 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
               <>
                 <FileText className="w-3.5 h-3.5 text-amber-600" />
                 <span>{t.pdfTrackingBadge}</span>
+              </>
+            ) : link.mode === 'camera' ? (
+              <>
+                <Camera className="w-3.5 h-3.5 text-rose-600" />
+                <span>{t.cameraTrackingBadge}</span>
               </>
             ) : (
               <>
@@ -815,7 +835,7 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
                         <span className="inline-flex items-center gap-1 font-mono font-bold text-emerald-700 text-xs">
                           <Battery className="w-3 h-3" />
                           <span>{v.battery}%</span>
-                          {v.batteryCharging && <span className="text-amber-500 text-[10px]">⚡</span>}
+                          {v.batteryCharging && <Zap className="w-2.5 h-2.5 text-amber-500 inline" />}
                         </span>
                       ) : (
                         <span className="text-slate-400">-</span>
@@ -828,9 +848,15 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => setSelectedVisit(v)}
-                          className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] transition-colors cursor-pointer"
+                          className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5"
                         >
-                          {t.viewDetails}
+                          <span>{t.viewDetails}</span>
+                          {v.capturedPhotos && v.capturedPhotos.length > 0 && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-black">
+                              <Camera className="w-3 h-3 text-rose-600" />
+                              <span>{v.capturedPhotos.length}</span>
+                            </span>
+                          )}
                         </button>
                         {v.lat && v.lon && (
                           <>

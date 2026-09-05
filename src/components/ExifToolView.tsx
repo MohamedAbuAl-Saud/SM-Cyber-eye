@@ -756,7 +756,7 @@ export const ExifToolView: React.FC<ExifToolViewProps> = ({ lang }) => {
                               : 'text-slate-600 hover:text-slate-950'
                           }`}
                         >
-                          {lang === 'ar' ? '🛰️ قمر صناعي' : '🛰️ Satellite'}
+                          {lang === 'ar' ? 'قمر صناعي' : 'Satellite'}
                         </button>
                         <button
                           onClick={() => setMapType('google')}

@@ -17,7 +17,7 @@ export const Footer: React.FC<FooterProps> = ({ lang }) => {
           </div>
           <span className="hidden sm:inline text-slate-300">|</span>
           <span className="text-slate-500 font-mono text-[11px] bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">
-            SM v1.0
+            SM v2.0
           </span>
         </div>
 

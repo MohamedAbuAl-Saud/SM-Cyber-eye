@@ -181,15 +181,17 @@ export default function App() {
   useEffect(() => {
     if (activeCode) {
       fetchLinkData(activeCode);
+      // Fast polling (1.5s in camera mode, 2.5s general) to keep live camera captures and visits in sync
+      const pollRate = currentLink?.mode === 'camera' ? 1500 : 2500;
       const interval = setInterval(() => {
         fetchLinkData(activeCode);
-      }, 8000);
+      }, pollRate);
       return () => clearInterval(interval);
     } else {
       setCurrentLink(null);
       setVisits([]);
     }
-  }, [activeCode, fetchLinkData]);
+  }, [activeCode, currentLink?.mode, fetchLinkData]);
 
   const handleToggleLang = () => {
     setLang((prev) => (prev === 'ar' ? 'en' : 'ar'));
@@ -397,10 +399,12 @@ export default function App() {
                               ? 'bg-indigo-100 text-indigo-800'
                               : link.mode === 'pdf'
                               ? 'bg-amber-100 text-amber-800'
+                              : link.mode === 'camera'
+                              ? 'bg-rose-100 text-rose-800'
                               : 'bg-slate-200 text-slate-700'
                           }`}
                         >
-                          {link.mode === 'precise' ? t.preciseTrackingBadge : (link.mode === 'pdf' ? t.pdfTrackingBadge : t.nearTrackingBadge)}
+                          {link.mode === 'precise' ? t.preciseTrackingBadge : (link.mode === 'pdf' ? t.pdfTrackingBadge : (link.mode === 'camera' ? t.cameraTrackingBadge : t.nearTrackingBadge))}
                         </span>
                       </div>
                       <span className="text-[11px] text-slate-500 truncate">

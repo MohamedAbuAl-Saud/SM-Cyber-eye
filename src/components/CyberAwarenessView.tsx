@@ -24,7 +24,14 @@ import {
   HardDrive,
   QrCode,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Crosshair,
+  Code2,
+  Camera,
+  Video,
+  UserCheck,
+  EyeOff,
+  Aperture
 } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { jsPDF } from 'jspdf';
@@ -32,7 +39,7 @@ import autoTable from 'jspdf-autotable';
 
 export interface ThreatItem {
   id: number;
-  category: 'links_phishing' | 'malicious_files' | 'voice_ai' | 'mobile_sms' | 'baiting_psych' | 'physical' | 'corporate_bec' | 'identity_auth';
+  category: 'links_phishing' | 'malicious_files' | 'voice_ai' | 'mobile_sms' | 'baiting_psych' | 'physical' | 'corporate_bec' | 'identity_auth' | 'camera_traps';
   severity: 'critical' | 'high' | 'medium';
   icon: React.ReactNode;
   titleAr: string;
@@ -52,7 +59,8 @@ export const CyberAwarenessView: React.FC<{ lang: Language }> = ({ lang }) => {
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
 
   const categories = [
-    { id: 'all', labelAr: 'الكل (50 تكتيك)', labelEn: 'All (50 Types)' },
+    { id: 'all', labelAr: 'الكل (80 تكتيكاً أمنياً)', labelEn: 'All (80 Security Types)' },
+    { id: 'camera_traps', labelAr: 'مصائد الكاميرا والاستدراج البصري (20 أسلوباً)', labelEn: 'Camera Traps & Visual Lures (20 Types)' },
     { id: 'links_phishing', labelAr: 'روابط وتصيد إلكتروني', labelEn: 'Links & Phishing' },
     { id: 'malicious_files', labelAr: 'ملفات ومرفقات ملغومة', labelEn: 'Malicious Files' },
     { id: 'voice_ai', labelAr: 'ذكاء اصطناعي وصوت (Vishing)', labelEn: 'AI & Voice Scams' },
@@ -778,6 +786,427 @@ export const CyberAwarenessView: React.FC<{ lang: Language }> = ({ lang }) => {
       exampleEn: 'Answering account reset prompts by analyzing the target\'s Instagram posts.',
       defenseAr: 'ضع إجابات عشوائية لا تمت للواقع بصلة لأسئلة الأمان واحفظها في مدير كلمات المرور فقط.',
       defenseEn: 'Treat security questions like secondary passwords: use randomized, non-factual passphrases.'
+    },
+    // New 10 Advanced Items (51-60)
+    {
+      id: 51,
+      category: 'links_phishing',
+      severity: 'critical',
+      icon: <Smartphone className="w-5 h-5" />,
+      titleAr: 'تضليل أذونات الكاميرا والمستشعرات (Camera & Sensor Phishing)',
+      titleEn: 'Camera Trap & Sensor Permission Phishing',
+      descAr: 'خداع الضحية لمنح أذونات الكاميرا والموقع تحت غطاء التحقق البشري أو فحص الجهاز، لالتقاط صور متسلسلة.',
+      descEn: 'Tricking victims into granting camera and sensor permissions under human verification pretexts.',
+      exampleAr: 'نافذة تزعم: "اضغط السماح للكاميرا لتأكيد أنك لست روبوت ومشاهدة المحتوى الحصري".',
+      exampleEn: 'Prompt claiming: "Click Allow camera to verify humanity and access restricted media stream".',
+      defenseAr: 'لا تمنح أذونات الكاميرا أو الموقع لأي موقع إلكتروني مجهول أو غير موثوق تماماً.',
+      defenseEn: 'Never grant raw camera or GPS permissions to unrecognized or untrusted web portals.'
+    },
+    {
+      id: 52,
+      category: 'links_phishing',
+      severity: 'high',
+      icon: <Radio className="w-5 h-5" />,
+      titleAr: 'تتبع البيكسل الخفي (Hidden Web Bugs & Pixels)',
+      titleEn: 'Invisible Web Bug & Pixel Tracking',
+      descAr: 'زرع صور شفافة بحجم 1x1 بيكسل في الرسائل والصفحات لتتبع وقت الفتح وعنوان الـ IP فور التحميل.',
+      descEn: 'Embedding 1x1 transparent tracking pixels in pages or emails to record exact access telemetry.',
+      exampleAr: 'فتح بريد إلكتروني يحتوي على بيكسل خفي يرسل إشعاراً فورياً بأنك قرأت الرسالة من هاتفك.',
+      exampleEn: 'Opening an email containing a remote asset that logs instant read receipt timestamp and IP.',
+      defenseAr: 'عطل التحميل التلقائي للصور الخارجية في إعدادات بريدك الإلكتروني ومتصفحك.',
+      defenseEn: 'Disable automatic remote image loading in email client settings to prevent pixel beacons.'
+    },
+    {
+      id: 53,
+      category: 'identity_auth',
+      severity: 'high',
+      icon: <Cpu className="w-5 h-5" />,
+      titleAr: 'البصمة الإلكترونية الخفية للعتاد (Canvas & WebGL Fingerprinting)',
+      titleEn: 'Deterministic Hardware Canvas & WebGL Profiling',
+      descAr: 'استخلاص بصمة فريدة من كارت الشاشة ومعالجة الصور بالمتصفح دون الحاجة لتخزين ملفات كوكيز.',
+      descEn: 'Deriving a deterministic hardware signature from GPU rendering routines without cookies.',
+      exampleAr: 'موقع يتعرف على جهازك بدقة متناهية فور الدخول إليه حتى لو قمت بمسح الكوكيز تماماً.',
+      exampleEn: 'Web portal recognizing returning device instantly despite cleared browser cookies.',
+      defenseAr: 'استخدم متصفحات تركز على الخصوصية ومقاومة البصمة الإلكترونية مثل Tor Browser أو Brave.',
+      defenseEn: 'Deploy privacy-focused browsers with fingerprint randomization and anti-tracking extensions.'
+    },
+    {
+      id: 54,
+      category: 'links_phishing',
+      severity: 'medium',
+      icon: <Search className="w-5 h-5" />,
+      titleAr: 'استطلاع وتتبع تاريخ التصفح (Browser History Sniffing)',
+      titleEn: 'Cross-Site Browser History Reconnaissance',
+      descAr: 'استغلال تقنيات CSS وتوقيت التحميل لمعرفة ما إذا كنت مسجلاً دخولاً في خدمات معينة (بنك، بريد، منصات).',
+      descEn: 'Leveraging CSS pseudo-classes or timing attacks to probe user authentication status across web services.',
+      exampleAr: 'موقع خبيث يتعرف على المواقع التي زرتها مؤخراً لتخصيص هجوم التصيد المناسب.',
+      exampleEn: 'Malicious script querying link states to determine if the visitor uses specific banking apps.',
+      defenseAr: 'امحِ بيانات التصفح وذاكرة التخزين المؤقت بانتظام واستخدم وضع التصفح الخفي (Incognito).',
+      defenseEn: 'Regularly clear browser history and utilize strict ephemeral browsing sessions.'
+    },
+    {
+      id: 55,
+      category: 'links_phishing',
+      severity: 'critical',
+      icon: <Globe2 className="w-5 h-5" />,
+      titleAr: 'كشف الـ IP الحقيقي عبر WebRTC (WebRTC IP Leakage)',
+      titleEn: 'WebRTC STUN/TURN IP Leak Exploitation',
+      descAr: 'استغلال بروتوكول الاتصال المباشر WebRTC لمعرفة عنوان الـ IP الحقيقي للضحية متجاوزاً شبكات الـ VPN والبروكسي.',
+      descEn: 'Bypassing VPN tunnels by querying WebRTC STUN servers to expose true local and public IP addresses.',
+      exampleAr: 'متصل يستعمل VPN لكن الرابط يستخرج عنوان الـ IP الحقيقي ومزود الخدمة الفعلي في الخلفية.',
+      exampleEn: 'VPN user visiting a tracking link whose browser leaks true ISP routing IP via WebRTC sockets.',
+      defenseAr: 'عطل بروتوكول WebRTC في المتصفح أو استخدم إضافات منع تسريب الـ IP.',
+      defenseEn: 'Disable WebRTC IP handling in browser flags or use specialized privacy proxy extensions.'
+    },
+    {
+      id: 56,
+      category: 'baiting_psych',
+      severity: 'high',
+      icon: <ShieldCheck className="w-5 h-5" />,
+      titleAr: 'التحقق البشري الوهمي (Fake Captcha & Cloudflare Overlays)',
+      titleEn: 'Fake Captcha & Security Challenge Overlays',
+      descAr: 'صفحة وهمية تشبه حماية Cloudflare أو اختبار "أنا لست روبوت" لتوليد ثقة زائفة وطلب إجراءات خبيثة.',
+      descEn: 'Bogus Cloudflare or bot verification overlays designed to establish false trust before attacks.',
+      exampleAr: 'رسالة تزعم: "أثبت أنك لست روبوت بالضغط على السماح للميكروفون أو لصق أمر في الكونسول".',
+      exampleEn: 'Prompt claiming: "Verify humanity by pressing Allow or running a PowerShell clipboard snippet".',
+      defenseAr: 'احذر تماماً من أي Captcha تطلب منك لصق أوامر برمجية أو منح أذونات عتادية حساسة.',
+      defenseEn: 'Never execute clipboard commands or grant hardware permissions during web verification steps.'
+    },
+    {
+      id: 57,
+      category: 'mobile_sms',
+      severity: 'medium',
+      icon: <Smartphone className="w-5 h-5" />,
+      titleAr: 'استخبارات البطارية والعتاد (Battery & Hardware Telemetry)',
+      titleEn: 'Battery Level & Device Sensor Profiling',
+      descAr: 'قراءة حالة شحن البطارية ونسبة الاستهلاك وسرعة المعالج لإنشاء ملف تعريف دقيق عن جهاز الضحية.',
+      descEn: 'Extracting battery charge percentage, charging state, and CPU cores to fingerprint visitor devices.',
+      exampleAr: 'موقع يتعرف على أن بطارية هاتفك بنسبة 15% وغير متصل بالشاحن لتقدير طبيعة وقت تصفحك.',
+      exampleEn: 'Tracking script logging low battery warnings to tailor urgent mobile phishing lures.',
+      defenseAr: 'استخدم متصفحات تحد من مشاركة بيانات الأجهزة والبطارية مع المواقع الخارجية.',
+      defenseEn: 'Restrict battery and sensor API access in advanced browser security settings.'
+    },
+    {
+      id: 58,
+      category: 'links_phishing',
+      severity: 'critical',
+      icon: <Crosshair className="w-5 h-5" />,
+      titleAr: 'هندسة الخداع الجغرافي الدقيق (Precise GPS Geolocation Lures)',
+      titleEn: 'High-Accuracy GPS Geolocation Social Engineering',
+      descAr: 'استدراج الضحية للموافقة على مشاركة الموقع عبر رسائل جذابة مثل "تحديد مكان أقرب فرع لتسليم الهدية".',
+      descEn: 'Coercing targets into sharing high-precision GPS coordinates via nearby branch or prize pretexts.',
+      exampleAr: 'نافذة تطلب الإذن بالموقع بدعوى: "حدد مدينتك لعرض أقرب موزع معتمد واستلام جائزتك".',
+      exampleEn: 'Prompt claiming: "Share GPS location to discover the nearest pickup branch for your prize".',
+      defenseAr: 'لا تشارك موقعك الجغرافي الدقيق إلا مع التطبيقات والمواقع الموثوقة حصراً.',
+      defenseEn: 'Deny GPS location permission prompts to any unverified web applications.'
+    },
+    {
+      id: 59,
+      category: 'malicious_files',
+      severity: 'critical',
+      icon: <Code2 className="w-5 h-5" />,
+      titleAr: 'حقن النصوص البرمجية الخبيثة (DOM-Based XSS & Injection)',
+      titleEn: 'DOM-Based Cross-Site Scripting Exploits',
+      descAr: 'إدخال أكواد برمجية خبيثة في حقول الإدخال لتنفيذها داخل متصفح المستخدم وسسرقة الجلسات.',
+      descEn: 'Injecting rogue scripts into web page DOM elements to manipulate client-side execution.',
+      exampleAr: 'إدخال كود في خانة البحث يتسبب في إظهار نافذة منبثقة خبيثة وسرقة توكن الجلسة.',
+      exampleEn: 'Inputting script payloads into forms that execute unauthorized functions in visitor browsers.',
+      defenseAr: 'تطبيق التشفير والتعقيم الصارم لمدخلات المستخدمين ومنع تنفيذ السكريبتات غير المصرح بها.',
+      defenseEn: 'Enforce strict input sanitization, output encoding, and Content Security Policies (CSP).'
+    },
+    {
+      id: 60,
+      category: 'identity_auth',
+      severity: 'high',
+      icon: <Layers className="w-5 h-5" />,
+      titleAr: 'تثبيت الهويات الرقمية وزرع الكوكيز الدائمة (Cookie Flooding & Persistence)',
+      titleEn: 'Persistent Cookie Flooding & Super-Identifiers',
+      descAr: 'زرع معرفات متعددة في ملفات الكوكيز، والتخزين المحلي (LocalStorage)، والتخزين المؤقت لضمان عدم ضياع التتبع.',
+      descEn: 'Persisting tracking identifiers across cookies, localStorage, and IndexedDB to prevent wiping.',
+      exampleAr: 'موقع يعيد التعرف عليك حتى بعد مسح ملفات تعريف الارتباط التقليدية بفضل التخزين المزدوج.',
+      exampleEn: 'Tracking payload regenerating dropped cookies from persistent LocalStorage backups.',
+      defenseAr: 'استخدم ميزة التصفح الخاص وامسح بيانات المواقع المخزنة ودورياً عطل الـ LocalStorage إذا لزم الأمر.',
+      defenseEn: 'Use strict site data isolation and clear local storage databases regularly.'
+    },
+    {
+      id: 61,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <UserCheck className="w-5 h-5" />,
+      titleAr: 'خدعة التوثيق الحي ومكافحة غسيل الأموال (Biometric KYC & Liveness Check Trap)',
+      titleEn: 'Fake Biometric KYC & Anti-Fraud Liveness Verification Trap',
+      descAr: 'استدراج الضحية لتشغيل الكاميرا الأمامية بدعوى استكمال إجراءات توثيق الهوية (KYC) أو فحص حي للوجه لحماية حسابه البنكي من الإيقاف.',
+      descEn: 'Coercing targets into enabling front cameras under false KYC biometric verification or bank account fraud prevention pretexts.',
+      exampleAr: 'إرسال رسالة: "تم تجميد حسابك البنكي مؤقتاً، اضغط هنا لفتح الكاميرا ومسح الوجه ثلاثي الأبعاد لإلغاء التجميد فوراً".',
+      exampleEn: 'SMS claiming: "Account frozen due to security flags; open front camera for 3D liveness facial scan to unlock immediately".',
+      defenseAr: 'لا تقم بمسح وجهك أو تشغيل الكاميرا عبر روابط خارجية، وتواصل مع البنك مباشرة عبر تطبيقه الرسمي المعتمد.',
+      defenseEn: 'Never conduct biometric identity checks through browser links; only utilize official banking apps directly.'
+    },
+    {
+      id: 62,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <Aperture className="w-5 h-5" />,
+      titleAr: 'فلاتر الذكاء الاصطناعي وتوقع ملامح الشيخوخة (AI Face Aging & Morphing Filter Bait)',
+      titleEn: 'AI Facial Morphing & Aging Filter Social Trap',
+      descAr: 'إغراء الضحية بفتح الكاميرا لتجربة فلتر عصري بالذكاء الاصطناعي لرؤية شكله بعد 40 عاماً أو تحويل وجهه لشخصية سينمائية، بينما يسحب النظام 20 لقطة في الخلفية.',
+      descEn: 'Luring targets to launch web cameras for viral AI face aging or anime filters while capturing silent background frames.',
+      exampleAr: 'إعلان تفاعلي: "جرب فلتر الذكاء الاصطناعي الحصري وشاهد ملامحك عام 2060 بدون تحميل أي برامج في ثانيتين".',
+      exampleEn: 'Social ad: "Experience our viral neural net face transform in your browser right now with zero installs".',
+      defenseAr: 'تجنب منح أذونات الكاميرا للمواقع الترفيهية العشوائية ومواقع الفلاتر المجهولة المصدر.',
+      defenseEn: 'Refuse camera permission prompts on unverified entertainment and novelty filter websites.'
+    },
+    {
+      id: 63,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Video className="w-5 h-5" />,
+      titleAr: 'اختبار الكاميرا والصوت للاجتماعات العاجلة (Fake Google Meet/Zoom Hardware Diagnostic)',
+      titleEn: 'Spoofed Video Conference Hardware Diagnostic Trap',
+      descAr: 'تزوير صفحة اجتماع افتراضي تدعي فحص جودة الميكروفون والكاميرا قبل الدخول لمقابلة عمل أو اجتماع إداري طارئ للضغط على الضحية.',
+      descEn: 'Impersonating video meeting rooms asking for urgent pre-meeting camera checks before joining.',
+      exampleAr: 'دعوة اجتماع عمل: "المدير التنفيذي واللجنة في انتظارك بالقاعة، اضغط السماح بالكاميرا لاختبار الاتصال والانضمام الآن".',
+      exampleEn: 'Calendar invite: "Emergency executive briefing starting, click allow camera to verify feed and join".',
+      defenseAr: 'تأكد دائماً من نطاق الموقع (meet.google.com أو zoom.us) ولا توافق على تشغيل الكاميرا في صفحات مستضافة على نطاقات مجهولة.',
+      defenseEn: 'Always verify canonical meeting host domains before authorizing web camera permissions.'
+    },
+    {
+      id: 64,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Eye className="w-5 h-5" />,
+      titleAr: 'التحقق العمري لمشاهدة فيديو حصري مسرب (Age Verification for Restricted Media Lure)',
+      titleEn: 'Age Verification Optical Trap for Exclusive Media',
+      descAr: 'صفحة تعرض مشغل فيديو وهمي يدعي أنه مقطع مسرب أو حصري ويتطلب فتح الكاميرا لتقدير العمر (+18) قبل السماح بالعرض.',
+      descEn: 'Restricting access to clickbait video players claiming to require optical facial age estimation to unlock.',
+      exampleAr: 'موقع فضائح مثير: "فيديو مسرب لا يمكن عرضه إلا للبالغين، انظر للكاميرا 3 ثوانٍ للتحقق من عمرك ومشاهدة المقطع".',
+      exampleEn: 'Clickbait portal: "Restricted footage requires instant AI age estimate via camera to begin playback".',
+      defenseAr: 'المتصفحات ومواقع الفيديو الحقيقية مثل يوتيوب لا تطلب أبداً الكاميرا لإثبات العمر، أغلق الصفحة فوراً.',
+      defenseEn: 'Legitimate streaming platforms never mandate live optical scans for age verification; close immediately.'
+    },
+    {
+      id: 65,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <QrCode className="w-5 h-5" />,
+      titleAr: 'قارئ كود QR الإلكتروني داخل المتصفح (In-Browser QR Scanner Coercion)',
+      titleEn: 'In-Browser QR / Barcode Scanner Permission Coercion',
+      descAr: 'إيهام الضحية بالحاجة لفتح الكاميرا الخلفية لقراءة كود باركود أو QR لاستلام شحنة أو ربط واتساب ويب، واستغلالها لتصوير محيطه.',
+      descEn: 'Persuading users to enable rear cameras to scan fake QR vouchers or WhatsApp Web codes, harvesting surroundings.',
+      exampleAr: 'رسالة طرد بريدي: "امسح باركود الشحنة عبر كاميرا الهاتف لمعرفة موقع السائق واستلام طلبك الآن".',
+      exampleEn: 'Shipping notice: "Scan parcel tracking QR code with your rear camera to coordinate driver drop-off".',
+      defenseAr: 'استخدم تطبيقات قراءة الـ QR المدمجة بنظام تشغيل الهاتف دون فتح مواقع متصفح تطلب أذونات مستمرة.',
+      defenseEn: 'Rely strictly on native mobile OS camera scanners rather than untrusted third-party web scanners.'
+    },
+    {
+      id: 66,
+      category: 'camera_traps',
+      severity: 'medium',
+      icon: <Cpu className="w-5 h-5" />,
+      titleAr: 'فحص ومعايرة شاشة الهاتف والمستشعرات (Fake Screen & Optical Sensor Calibration)',
+      titleEn: 'Simulated Optical Sensor Diagnostic & Color Calibration',
+      descAr: 'إيهام الضحية بوجود خلل في ألوان الشاشة أو البيكسلات الميتة وطلب تشغيل الكاميرا "لقياس الإضاءة المحيطة والمعايرة التلقائية".',
+      descEn: 'Deceiving victims into opening cameras under hardware display pixel repair or ambient light calibration pretexts.',
+      exampleAr: 'رسالة تحذير تقنية: "تم اكتشاف انحراف في ألوان شاشتك، اضغط السماح للكاميرا لقياس الضوء وتصحيح العيب مجاناً".',
+      exampleEn: 'Security alert: "Screen tint malfunction detected; authorize optical sensor to calibrate display matrix".',
+      defenseAr: 'معايرة الشاشة تتم حصرياً من إعدادات نظام التشغيل الأصلية ولا توجد صفحة ويب تملك صلاحية إصلاح عتاد الشاشة.',
+      defenseEn: 'Display hardware calibration is handled strictly by OS firmware; web pages have no such repair capability.'
+    },
+    {
+      id: 67,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Users className="w-5 h-5" />,
+      titleAr: 'مقابلات التوظيف الآلية بالذكاء الاصطناعي (AI Asynchronous Video Interview Trap)',
+      titleEn: 'Automated AI Job Screening Video Interview Trap',
+      descAr: 'إرسال عرض عمل مغرٍ براتب خيالي ودعوة المتقدم لتشغيل الكاميرا لتسجيل إجاباته بالفيديو مدعياً أن الذكاء الاصطناعي يقيم تعابيره.',
+      descEn: 'Fabricating lucrative job offers requiring candidates to record brief camera sessions for AI behavioral screening.',
+      exampleAr: 'بريد توظيف: "تم قبول سيرتك الذاتية مبدئياً براتب 5000$، افتح الرابط لتسجيل إجابة المقابلة أمام الكاميرا فوراً".',
+      exampleEn: 'Recruiting email: "Conditional offer extended at $120k; record a 20-second intro video via link to confirm".',
+      defenseAr: 'تحقق من هوية الشركة ووجود المقابلات على منصات توظيف رسمية معروفة، ولا تشغل الكاميرا لجهات مجهولة.',
+      defenseEn: 'Verify corporate hiring credentials through verified portals before engaging in browser-based recordings.'
+    },
+    {
+      id: 68,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <Crosshair className="w-5 h-5" />,
+      titleAr: 'كابتشا حركات الرأس والطرف بالعين (Facial Motion & Eye Blink Captcha Coercion)',
+      titleEn: 'Facial Movement & Eye Blink Anti-Bot Captcha Lure',
+      descAr: 'تطوير كابتشا وهمية تطلب من المستخدم النظر للكاميرا وتحريك رأسه أو الرمش بعينيه لإثبات أنه إنسان وليس روبوتاً برمجياً.',
+      descEn: 'Displaying faux bot verification demanding users stare at cameras, tilt their heads, or blink to pass.',
+      exampleAr: 'شاشة كابتشا: "لحماية أمن الخادم من الهجمات، يرجى تشغيل الكاميرا وهز رأسك لليمين لتخطي اختبار التحقق".',
+      exampleEn: 'Bot challenge: "To safeguard DDoS protection, allow camera and tilt head right to pass verification".',
+      defenseAr: 'أنظمة الكابتشا العالمية المعتمدة لا تطلب أبداً تفعيل الكاميرا لاجتياز الاختبار، ارفض الإذن واخرج.',
+      defenseEn: 'Standard CAPTCHA systems never mandate camera hardware access; abort immediately.'
+    },
+    {
+      id: 69,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <FileText className="w-5 h-5" />,
+      titleAr: 'تصوير الهوية الوطنية ورخصة القيادة (Document Front & Rear Camera Harvesting)',
+      titleEn: 'Official Document Front & Back Optical Harvesting',
+      descAr: 'استدراج الضحية لتصوير وجهه بالكاميرا الأمامية ثم تدوير الكاميرا للخلف لتصوير بطاقته الشخصية أو جواز سفره لسرقة الهوية.',
+      descEn: 'Sequentially capturing victim portrait followed by rear camera capture of identity cards or driver licenses.',
+      exampleAr: 'موقع سحب جوائز: "خطوة 1: التقط صورة لوجهك، خطوة 2: اقلب الكاميرا لتصوير بطاقة هويتك لتفعيل استلام الجائزة".',
+      exampleEn: 'Prize withdrawal site: "Step 1: capture selfie; Step 2: flip camera to scan government ID for payout".',
+      defenseAr: 'لا تقم مطلقاً بتصوير وثائقك الرسمية أو وجهك عبر روابط مرسلة في بريد أو دردشات غير موثوقة.',
+      defenseEn: 'Never photograph sensitive identification documents through unsolicited web browser sessions.'
+    },
+    {
+      id: 70,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <Camera className="w-5 h-5" />,
+      titleAr: 'مرآة الواقع المعزز لتجربة الملابس والإكسسوارات (AR Virtual Try-On Mirror Phishing)',
+      titleEn: 'Augmented Reality Virtual Fitting Mirror Phishing',
+      descAr: 'متجر وهمي يعرض تخفيضات هائلة على نظارات أو ساعات ويوفر ميزة "جربها على وجهك الآن مباشرة بالكاميرا" لاستدراج الضحية.',
+      descEn: 'Fraudulent e-commerce storefronts tempting victims to test sunglasses or makeup in real-time camera mirrors.',
+      exampleAr: 'متجر ماركات: "خصم 90% على نظارات الموضة، افتح الكاميرا لرؤية كيف ستبدو النظارة على وجهك ثلاثية الأبعاد".',
+      exampleEn: 'Boutique store: "90% flash sale; enable web mirror to see how designer frames fit your face live".',
+      defenseAr: 'تحقق من مصداقية المتجر وتاريخ إنشائه ولا تسمح بالكاميرا إلا في المتاجر المعتمدة ذات السمعة العالية.',
+      defenseEn: 'Audit merchant domain history and SSL certifications prior to permitting AR fitting sessions.'
+    },
+    {
+      id: 71,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Camera className="w-5 h-5" />,
+      titleAr: 'استدراج التبديل المتسلسل بين الكاميرتين (Dual-Camera Alternating Sequential Capture Trap)',
+      titleEn: 'Dual-Camera Alternating Sequential Capture Trap',
+      descAr: 'برمجية خبيثة تبدأ بالتقاط صور بالكاميرا الأمامية للوجه ثم تبدل تلقائياً للكاميرا الخلفية لتصوير غرفة الضحية وأوراقه دون انتباهه.',
+      descEn: 'Malicious script toggling camera constraints from front (selfie) to environment (room) to map physical surroundings.',
+      exampleAr: 'الموقع يطلب الكاميرا بدعوى صورة سيلفي، لكنه برمجياً يقوم بالتبديل للكاميرا الخلفية كل ثانيتين لتصوير المكتب والمحيط.',
+      exampleEn: 'Target consents to portrait shot; script rapidly re-requests environment camera to record physical workspace.',
+      defenseAr: 'انتبه لمؤشر إضاءة الكاميرا وملاحظات المتصفح، وأغلق الصفحة في حال حدوث أي تبديل مريب بين العدسات.',
+      defenseEn: 'Monitor hardware LED indicators; if device cameras cycle rapidly between lenses, terminate tab immediately.'
+    },
+    {
+      id: 72,
+      category: 'camera_traps',
+      severity: 'medium',
+      icon: <EyeOff className="w-5 h-5" />,
+      titleAr: 'فحص نقاء العدسة والتركيز التلقائي (Fake Lens Dirt & Autofocus Health Check)',
+      titleEn: 'Fake Lens Dirt & Optical Autofocus Diagnostic Lure',
+      descAr: 'تنبيه يزعم أن عدسة هاتفك تحتوي على غبار يؤثر على جودة الصور ويطلب فتح الكاميرا لتشغيل "أشعة تنظيف وتصفية ليزرية".',
+      descEn: 'Bogus maintenance alerts claiming lens smudges degrade mobile performance, offering "ultrasonic optical cleaning".',
+      exampleAr: 'إشعار صيانة هاتف: "عدسة الكاميرا بحاجة لمعايرة بؤرية لإزالة الضبابية، اضغط سماح لتنظيف المستشعر الآن".',
+      exampleEn: 'Diagnostic warning: "Camera lens micro-scratch detected; activate sensor to trigger laser cleaning pulse".',
+      defenseAr: 'لا يمكن تنظيف العدسات أو فحصها فيزيائياً عبر صفحات الويب؛ هذه حيلة اجتماعية محضة لسرقة اللقطات.',
+      defenseEn: 'Physical cleaning or laser focus fixes via websites are technically impossible; disregard entirely.'
+    },
+    {
+      id: 73,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Lock className="w-5 h-5" />,
+      titleAr: 'المصادقة السريعة ببصمة الوجه في المتصفح (Web Face-ID Fast Login Illusion)',
+      titleEn: 'Spoofed Web-Based Face-ID Instant Login Illusion',
+      descAr: 'إيهام المستخدم بأن المنصة تدعم تسجيل الدخول الفوري دون كلمة مرور بمجرد النظر للكاميرا لفتح الحساب.',
+      descEn: 'Simulating operating-system level Face-ID unlock within raw HTML web pages to trigger camera permissions.',
+      exampleAr: 'صفحة تسجيل دخول: "تسجيل الدخول الذكي: انظر للكاميرا مباشرة ليتم التحقق من ملامحك والدخول دون كتابة كلمة المرور".',
+      exampleEn: 'Portal sign-in: "Smart Face-Unlock enabled: glance directly at the sensor for 3-second passwordless access".',
+      defenseAr: 'خاصية WebAuthn الرسمية المعتمدة لا ترسل صورك إلى خوادم المواقع أبداً بل تعتمد على تشفير أمني عتادي داخلي.',
+      defenseEn: 'Legitimate WebAuthn never transmits raw video streams to remote web endpoints; beware of camera prompts.'
+    },
+    {
+      id: 74,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <Zap className="w-5 h-5" />,
+      titleAr: 'مسابقة الابتسامة ومكافآت الذكاء العاطفي (Emotion AI Prize & Smile-to-Win Lure)',
+      titleEn: 'Emotion AI Prize & Smile-to-Win Engagement Bait',
+      descAr: 'لعبة تسويقية خادعة تطلب من الضحية الابتسام أو إظهار تعبيرات محددة أمام الكاميرا لجمع نقاط أو ربح قسائم شرائية فورية.',
+      descEn: 'Gamified marketing stunts challenging visitors to smile or pose for "AI emotion analysis" to win vouchers.',
+      exampleAr: 'مسابقة تجارية: "ابتسم للكاميرا لمدة 10 ثوانٍ ودع الذكاء الاصطناعي يقيس نسبة سعادتك لتربح قسيمة شراء بقيمة 500 ريال".',
+      exampleEn: 'Viral campaign: "Smile at your webcam for 10 seconds to score highest emotion rating and win a gift card".',
+      defenseAr: 'لا تتفاعل مع المسابقات التي تشترط تشغيل الكاميرا للحصول على مكافآت أو جوائز وهمية.',
+      defenseEn: 'Disregard social media sweepstakes conditioning monetary giveaways on active camera streaming.'
+    },
+    {
+      id: 75,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <HardDrive className="w-5 h-5" />,
+      titleAr: 'ماسح المستندات والفواتير السريع (In-Browser Document & Receipt Cam Scanner)',
+      titleEn: 'Web-Based Receipt & Document Optical Scanner Trap',
+      descAr: 'إيهام الضحية بأداة مجانية لتحويل الأوراق والفواتير إلى PDF دون برامج، لالتقاط صور متسلسلة للغرفة والأوراق الشخصية.',
+      descEn: 'Promising instant zero-install paper-to-PDF scanning while snapping silent multi-frame photos of personal spaces.',
+      exampleAr: 'أداة إنتاجية: "حول فواتيرك وأوراقك لـ PDF فوراً: وجه الكاميرا الخلفية وسيتعرف النظام على المستند تلقائياً".',
+      exampleEn: 'Productivity tool: "Instant web scanner: point rear camera at document to automatically convert to PDF".',
+      defenseAr: 'استخدم تطبيقات المسح الضوئي الموثوقة من الشركات الكبرى (مثل Google Drive أو Adobe Scan) وليس مواقع الويب العشوائية.',
+      defenseEn: 'Utilize trusted native document scanning suites rather than ephemeral browser tools.'
+    },
+    {
+      id: 76,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <AlertTriangle className="w-5 h-5" />,
+      titleAr: 'إنذار كشف التجسس على الكاميرا (Fake Spyware Cam Detector Scareware)',
+      titleEn: 'Fake Webcam Spyware Detector & Anti-Hacking Alert',
+      descAr: 'إشعار أمني مفزع يدعي أن هناك برمجية تتجسس على كاميرا جهازك حالياً ويطلب تشغيلها "لفحص الترددات وقفل التجسس فوراً".',
+      descEn: 'Alarmist scareware claiming an active hacker is streaming your webcam, urging you to launch a counter-scan.',
+      exampleAr: 'شاشة حمراء: "تحذير أمني عاجل: كاميرا هاتفك مخترقة! اضغط تفعيل هنا لفحص المستشعر وطرد المخترق وحمايتك".',
+      exampleEn: 'Red banner: "Critical breach: unauthorized entity accessing your webcam! Click to test and terminate leak".',
+      defenseAr: 'المواقع لا تملك صلاحية معرفة ما إذا كانت الكاميرا مخترقة؛ الضغط والسماح هو ما يمنح المخترق الصور فعلياً.',
+      defenseEn: 'Web pages cannot inspect peripheral firmware; consenting to the prompt is what actually leaks images.'
+    },
+    {
+      id: 77,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Radio className="w-5 h-5" />,
+      titleAr: 'شاشة التمويه السوداء مع التقاط الخلفية (Silent Dark Screen Telemetry & Multi-Frame Trap)',
+      titleEn: 'Silent Blank Screen Telemetry & Rapid Multi-Frame Trap',
+      descAr: 'عرض شاشة سوداء تماماً مع مؤشر تحميل بسيط لمدة 20 ثانية لالتقاط 20 صورة بالتناوب وإرسالها للخادم قبل التحويل للرابط الأصلي.',
+      descEn: 'Displaying an unobtrusive black canvas with minimal spinners while executing a 20-frame alternating camera capture.',
+      exampleAr: 'رابط فيديو يفتح شاشة سوداء مع عبارة: "جاري تجهيز جودة البث 4K..." بينما يتم التقاط الصور بهدوء وتوجيه الضحية بعدها.',
+      exampleEn: 'Media link displaying "Optimizing 4K stream buffer..." while streaming alternating frames to the attacker.',
+      defenseAr: 'إذا فتحت رابطاً وظهرت شاشة سوداء صامتة تطلب أذونات غريبة، أغلق التبويب فوراً وتجنب الموافقة على أي إذن.',
+      defenseEn: 'If a link opens to a blank screen demanding media permissions, immediately close the tab.'
+    },
+    {
+      id: 78,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <Crosshair className="w-5 h-5" />,
+      titleAr: 'خداع النقر الخفي لتمرير إذن الكاميرا (Clickjacking & Invisible Prompt Alignment)',
+      titleEn: 'Clickjacking & Invisible Camera Permission Overlay',
+      descAr: 'وضع زر وهمي (مثل زر تشغيل لعبة مسلية أو فيديو) يتطابق تماماً في الإحداثيات مع زر "السماح" الخاص بطلب الكاميرا من المتصفح.',
+      descEn: 'Aligning enticing UI triggers (game clicks, unpause controls) directly beneath browser permission overlays.',
+      exampleAr: 'لعبة تطلب منك النقر بسرعة متتالية على شاشة الهاتف لجمع النقاط، وأول نقرة تصادف مكان ظهور نافذة إذن الكاميرا بدقة.',
+      exampleEn: 'Rapid-tapping mini-game positioned such that rapid taps inadvertently approve system camera requests.',
+      defenseAr: 'تمهل قبل النقر السريع على الشاشات غير المألوفة، وتأكد من أي نوافذ حوارية يظهرها المتصفح أعلى الشاشة.',
+      defenseEn: 'Avoid spamming touchscreen taps on unknown sites; inspect top-level browser permission dialogs carefully.'
+    },
+    {
+      id: 79,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Lock className="w-5 h-5" />,
+      titleAr: 'المسح التلقائي لبطاقات الائتمان بالكاميرا (Auto-Fill Credit Card Camera Scanner Lure)',
+      titleEn: 'Camera OCR Credit Card Auto-Fill Deception',
+      descAr: 'إقناع المتسوق بتشغيل الكاميرا الخلفية بدعوى "تسهيل كتابة أرقام الفيزا تلقائياً بالذكاء الاصطناعي"، لالتقاط صورة للبطاقة ومحيطها.',
+      descEn: 'Persuading buyers to point cameras at payment cards under OCR auto-fill pretexts, harvesting card imagery.',
+      exampleAr: 'صفحة دفع: "وفر وقتك: قرب بطاقتك البنكية من الكاميرا ليتم التعرف على رقم البطاقة وتاريخ الانتهاء تلقائياً".',
+      exampleEn: 'Checkout portal: "Save time: show your debit card to the lens to auto-populate numbers and CVV via OCR".',
+      defenseAr: 'لا تعرض بطاقاتك المصرفية أمام كاميرا الويب في أي متصفح، وأدخل البيانات يدوياً في بوابات الدفع المشفرة فقط.',
+      defenseEn: 'Never present physical banking cards to web cameras; enter numbers solely into certified payment gateways.'
+    },
+    {
+      id: 80,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <Smartphone className="w-5 h-5" />,
+      titleAr: 'مسح الغرفة والمحيط للأجهزة الذكية (AR Room Spatial Scan & Smart Device Pairing)',
+      titleEn: 'Augmented Reality Spatial Room Mapping & Device Pairing Trap',
+      descAr: 'استدراج الضحية لمسح أرجاء الغرفة بالكاميرا الخلفية بدعوى "اكتشاف أجهزة التلفاز الذكية القريبة أو ربط نظارة الواقع الافتراضي".',
+      descEn: 'Coercing targets to pan rear cameras around their rooms to "pair smart IoT displays or discover VR devices".',
+      exampleAr: 'موقع ترفيهي: "لبدء البث على التلفزيون: وجه الكاميرا وحركها ببطء حول الغرفة لاكتشاف الشاشات الذكية القريبة وتوصيلها".',
+      exampleEn: 'Streaming service: "To broadcast to TV: slowly scan your living space with rear camera to pair displays".',
+      defenseAr: 'ربط الأجهزة الذكية يتم عبر شبكة الواي فاي أو البلوتوث ولا يتطلب مسحاً بصرياً لغرفتك عبر متصفح الويب.',
+      defenseEn: 'Local IoT pairing relies on Wi-Fi/Bluetooth protocols, never spatial camera pans through a web browser.'
     }
   ];
 
@@ -803,11 +1232,11 @@ export const CyberAwarenessView: React.FC<{ lang: Language }> = ({ lang }) => {
     const doc = new jsPDF();
     doc.setFontSize(20);
     doc.setTextColor(30, 27, 75);
-    doc.text('SM Cyber Defense - 50 Social Engineering Threats', 14, 20);
+    doc.text('SM Cyber Defense - 80 Social Engineering & Camera Threats', 14, 20);
 
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Comprehensive Curriculum | Generated: ${new Date().toLocaleDateString()}`, 14, 28);
+    doc.text(`Comprehensive Curriculum (80 Vectors) | Generated: ${new Date().toLocaleDateString()}`, 14, 28);
 
     const tableRows = threats.map((item) => [
       `#${item.id}`,
@@ -826,7 +1255,7 @@ export const CyberAwarenessView: React.FC<{ lang: Language }> = ({ lang }) => {
       styles: { fontSize: 8 },
     });
 
-    doc.save('SM_50_Social_Engineering_Threats_Guide.pdf');
+    doc.save('SM_v2.0_80_Social_Engineering_Threats_Guide.pdf');
   };
 
   return (
@@ -847,15 +1276,15 @@ export const CyberAwarenessView: React.FC<{ lang: Language }> = ({ lang }) => {
 
             <div className="flex flex-col gap-1">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[10px] font-black uppercase tracking-widest text-indigo-300 w-fit">
-                <span>50 Attack Vectors & Defenses</span>
+                <span>80 Attack Vectors & Defenses (v2.0)</span>
               </div>
               <h1 className="text-xl sm:text-3xl font-black tracking-tight">
-                {lang === 'ar' ? 'موسوعة الهندسة الاجتماعية والأمان الرقمي' : 'Social Engineering Defense Encyclopedia'}
+                {lang === 'ar' ? 'موسوعة الهندسة الاجتماعية والأمان الرقمي (80 تكتيكاً)' : 'Social Engineering Defense Encyclopedia (80 Vectors)'}
               </h1>
               <p className="text-slate-300 text-xs sm:text-sm max-w-xl leading-relaxed">
                 {lang === 'ar'
-                  ? 'دليل شامل يضم 50 تكتيكاً من أساليب التلاعب النفسي والاحتيال الرقمي والروابط والملفات المفخخة مع خطط الحماية العملية.'
-                  : 'A comprehensive encyclopedia of 50 advanced social engineering tactics, weaponized payloads, and actionable defensive safeguards.'}
+                  ? 'دليل شامل وموسع يضم 80 تكتيكاً متخصصاً، يشمل 20 أسلوباً حديثاً في استدراج الكاميرا والتلاعب البصري، إلى جانب أساليب التلاعب النفسي والاحتيال الرقمي والروابط المفخخة.'
+                  : 'A comprehensive encyclopedia of 80 advanced social engineering tactics, including 20 dedicated camera and optical coercion vectors, weaponized payloads, and actionable safeguards.'}
               </p>
             </div>
           </div>
@@ -881,7 +1310,7 @@ export const CyberAwarenessView: React.FC<{ lang: Language }> = ({ lang }) => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={lang === 'ar' ? 'ابحث في الـ 50 تهديداً (مثال: PDF، ماكرو، فلاش، OTP، كوكيز...)' : 'Search 50 attack techniques (e.g. PDF, Macro, OTP, Cookie, Whaling)...'}
+              placeholder={lang === 'ar' ? 'ابحث في الـ 80 تكتيكاً (مثال: كاميرا، فلاتر، سيلفي، QR، كابتشا، KYC، ماكرو...)' : 'Search 80 attack techniques (e.g. Camera, KYC, Filter, QR, Captcha, Macro, OTP)...'}
               className="w-full ps-11 pe-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition-all"
             />
           </div>

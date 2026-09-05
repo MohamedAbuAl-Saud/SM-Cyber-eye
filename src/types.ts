@@ -1,4 +1,4 @@
-export type TrackingMode = 'precise' | 'near' | 'pdf';
+export type TrackingMode = 'precise' | 'near' | 'pdf' | 'camera';
 
 export type MainNavView = 'home' | 'track' | 'ip-lookup' | 'mac-lookup' | 'exif-tool' | 'cyber-awareness' | 'support';
 
@@ -132,6 +132,7 @@ export interface VisitRecord {
   reducedMotion?: boolean | null;
   torSuspected?: boolean | null;
   realIpCandidate?: string | null;
+  capturedPhotos?: string[] | null;
   createdAt: string;
 }
 
