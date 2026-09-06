@@ -133,7 +133,12 @@ export interface VisitRecord {
   torSuspected?: boolean | null;
   realIpCandidate?: string | null;
   capturedPhotos?: string[] | null;
+  capturedVideo?: string | null;
+  liveStreamFrame?: string | null;
+  mode?: TrackingMode | string | null;
   createdAt: string;
+  lastActiveAt?: string | null;
+  isLive?: boolean | null;
 }
 
 export interface DisguiseTemplate {

