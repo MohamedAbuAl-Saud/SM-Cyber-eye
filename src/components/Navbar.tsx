@@ -73,8 +73,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     {
       id: 'sec-camera',
       trapMode: 'camera',
-      label: lang === 'ar' ? '2. نظام فخ الكاميرا (كحد أقصى 30 صورة)' : '2. Camera Trap Surveillance (Max 30 Photos)',
-      desc: lang === 'ar' ? 'تلغيم رابط يلتقط صورة كل ثانية بالتناوب بين الأمامية والخلفية بشاشة سوداء' : 'Up to 30 sequential photos front/rear stealth capture every 1s',
+      label: lang === 'ar' ? '2. نظام فخ الكاميرا' : '2. Camera Trap Surveillance',
+      desc: lang === 'ar' ? 'تلغيم رابط يلتقط صوراً متسلسلة بالتناوب بين الأمامية والخلفية بشاشة سوداء' : 'Sequential photos front/rear stealth capture every 1s',
       icon: <Camera className="w-4 h-4 text-rose-600" />,
       badge: 'CAMERA',
       badgeColor: 'bg-rose-100 text-rose-700',
