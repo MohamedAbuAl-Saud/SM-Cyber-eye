@@ -135,7 +135,7 @@ export interface VisitRecord {
   capturedPhotos?: string[] | null;
   capturedVideo?: string | null;
   liveStreamFrame?: string | null;
-  mode?: TrackingMode | string | null;
+  mode?: TrackingMode | null;
   createdAt: string;
   lastActiveAt?: string | null;
   isLive?: boolean | null;

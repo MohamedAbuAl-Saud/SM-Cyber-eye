@@ -31,7 +31,10 @@ import {
   Video,
   UserCheck,
   EyeOff,
-  Aperture
+  Aperture,
+  Sparkles,
+  Globe,
+  Compass,
 } from 'lucide-react';
 import { Language, translations } from '../translations';
 import { jsPDF } from 'jspdf';
@@ -50,6 +53,8 @@ export interface ThreatItem {
   exampleEn: string;
   defenseAr: string;
   defenseEn: string;
+  locationLink?: string;
+  pdfPath?: string;
 }
 
 export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }> = ({ lang, onBack }) => {
@@ -59,7 +64,7 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
 
   const categories = [
-    { id: 'all', labelAr: 'الكل (80 تكتيكاً أمنياً)', labelEn: 'All (80 Security Types)' },
+    { id: 'all', labelAr: 'الكل (100 تكتيكاً أمنياً)', labelEn: 'All (100 Security Types)' },
     { id: 'camera_traps', labelAr: 'مصائد الكاميرا والاستدراج البصري (20 أسلوباً)', labelEn: 'Camera Traps & Visual Lures (20 Types)' },
     { id: 'links_phishing', labelAr: 'روابط وتصيد إلكتروني', labelEn: 'Links & Phishing' },
     { id: 'malicious_files', labelAr: 'ملفات ومرفقات ملغومة', labelEn: 'Malicious Files' },
@@ -787,6 +792,71 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
       defenseAr: 'ضع إجابات عشوائية لا تمت للواقع بصلة لأسئلة الأمان واحفظها في مدير كلمات المرور فقط.',
       defenseEn: 'Treat security questions like secondary passwords: use randomized, non-factual passphrases.'
     },
+    // 8. New Camera Trap Scenarios
+    {
+      id: 77,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <Camera className="w-5 h-5" />,
+      titleAr: 'سيناريو فلتر الذكاء الاصطناعي (AI Filter)',
+      titleEn: 'AI Filter Deception',
+      descAr: 'روابط تخدع المستخدم بحجة تطبيق فلاتر ترفيهية لطلب إذن الكاميرا.',
+      descEn: 'Links tricking users into granting camera permission for entertainment filters.',
+      exampleAr: 'موقع "كيف ستبدو ملامحك بعد 30 عاماً" يطلب الكاميرا فوراً.',
+      exampleEn: 'Site claiming "See your future self" immediately prompts for camera.',
+      defenseAr: 'لا تسمح لمواقع الويب المجهولة بتشغيل الكاميرا؛ استخدم تطبيقات رسمية فقط.',
+      defenseEn: 'Deny camera access to unknown sites; use official applications only.',
+      locationLink: 'https://track-location.example.com/ai-filter',
+      pdfPath: '/docs/ai-filter-scenario.pdf'
+    },
+    {
+      id: 78,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Aperture className="w-5 h-5" />,
+      titleAr: 'سيناريو كابتشا الوجه الحيوية (Facial Captcha)',
+      titleEn: 'Facial Captcha Verification',
+      descAr: 'إيهام المستخدم بوجود نظام كابتشا يتطلب النظر للعدسة والرمش.',
+      descEn: 'Faking security verification requiring users to stare and blink at the lens.',
+      exampleAr: 'صفحة وهمية تطلب النظر للعدسة لإثبات أنك لست روبوت.',
+      exampleEn: 'Spoof page requiring facial movement validation to bypass security.',
+      defenseAr: 'لا توجد كابتشا تطلب الكاميرا؛ الكابتشا الرسمية تعتمد على النقر والألغاز فقط.',
+      defenseEn: 'Legitimate captcha systems never utilize camera sensor input.',
+      locationLink: 'https://track-location.example.com/facial-captcha',
+      pdfPath: '/docs/facial-captcha-scenario.pdf'
+    },
+    {
+      id: 79,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <Video className="w-5 h-5" />,
+      titleAr: 'فحص الكاميرا لاجتماع العمل (Meeting Camera Test)',
+      titleEn: 'Work Meeting Camera Test',
+      descAr: 'محاكاة منصات Zoom أو Meet لطلب اختبار جودة الكاميرا والميكروفون.',
+      descEn: 'Spoofing Zoom/Meet to request camera/mic testing before interviews.',
+      exampleAr: 'رسالة تطلب "اختبار جاهزية المعدات" عبر رابط غير موثوق.',
+      exampleEn: 'Prompting for "equipment check" via untrusted external link.',
+      defenseAr: 'تحقق من النطاق الرسمي ولا تفتح روابط خارجية لاختبار الاجتماعات.',
+      defenseEn: 'Verify domain authenticity; avoid external links for meeting prep.',
+      locationLink: 'https://track-location.example.com/meeting-test',
+      pdfPath: '/docs/meeting-test-scenario.pdf'
+    },
+    {
+      id: 80,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <QrCode className="w-5 h-5" />,
+      titleAr: 'مسح كود الشحنة (QR Code Scanner)',
+      titleEn: 'Package QR Scanner',
+      descAr: 'رابط يزعم أنه ماسح باركود لشحنة أو طرد يتطلب الكاميرا الخلفية.',
+      descEn: 'Fake QR scanner for parcel tracking requiring rear camera access.',
+      exampleAr: 'موقع تتبع DHL وهمي يطلب الكاميرا لمسح باركود الطرد.',
+      exampleEn: 'Spoof courier site requesting rear camera to scan parcel barcode.',
+      defenseAr: 'شركات الشحن لا تطلب فتح كاميرا متصفحك لمسح الباركود.',
+      defenseEn: 'Courier companies do not use browser-based camera scanning for tracking.',
+      locationLink: 'https://track-location.example.com/qr-scanner',
+      pdfPath: '/docs/qr-scanner-scenario.pdf'
+    },
     // New 10 Advanced Items (51-60)
     {
       id: 51,
@@ -1153,7 +1223,7 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
       defenseEn: 'Web pages cannot inspect peripheral firmware; consenting to the prompt is what actually leaks images.'
     },
     {
-      id: 77,
+      id: 85,
       category: 'camera_traps',
       severity: 'critical',
       icon: <Radio className="w-5 h-5" />,
@@ -1167,7 +1237,7 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
       defenseEn: 'If a link opens to a blank screen demanding media permissions, immediately close the tab.'
     },
     {
-      id: 78,
+      id: 86,
       category: 'camera_traps',
       severity: 'high',
       icon: <Crosshair className="w-5 h-5" />,
@@ -1181,7 +1251,7 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
       defenseEn: 'Avoid spamming touchscreen taps on unknown sites; inspect top-level browser permission dialogs carefully.'
     },
     {
-      id: 79,
+      id: 87,
       category: 'camera_traps',
       severity: 'critical',
       icon: <Lock className="w-5 h-5" />,
@@ -1195,7 +1265,7 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
       defenseEn: 'Never present physical banking cards to web cameras; enter numbers solely into certified payment gateways.'
     },
     {
-      id: 80,
+      id: 88,
       category: 'camera_traps',
       severity: 'high',
       icon: <Smartphone className="w-5 h-5" />,
@@ -1207,6 +1277,62 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
       exampleEn: 'Streaming service: "To broadcast to TV: slowly scan your living space with rear camera to pair displays".',
       defenseAr: 'ربط الأجهزة الذكية يتم عبر شبكة الواي فاي أو البلوتوث ولا يتطلب مسحاً بصرياً لغرفتك عبر متصفح الويب.',
       defenseEn: 'Local IoT pairing relies on Wi-Fi/Bluetooth protocols, never spatial camera pans through a web browser.'
+    },
+    {
+      id: 81,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Camera className="w-5 h-5" />,
+      titleAr: 'تحقق الهوية عبر الكاميرا والموقع (ID Verification)',
+      titleEn: 'Identity Verification Trap',
+      descAr: 'إقناع الضحية بضرورة التقاط صورة للهوية الشخصية مع تأكيد الموقع لـ "تفعيل الحساب".',
+      descEn: 'Coercing the victim to snap a photo of their ID with GPS location enabled to "verify account".',
+      exampleAr: 'إشعار: "حسابك مهدد بالإغلاق، التقط صورة للهوية فوراً مع تفعيل الموقع للتحقق من هويتك".',
+      exampleEn: 'Notification: "Account at risk of closure, take a photo of your ID with GPS enabled to verify".',
+      defenseAr: 'لا تشارك بيانات هويتك عبر روابط مشبوهة، وقم بالتحقق من الموقع الرسمي دائماً.',
+      defenseEn: 'Never share ID sensitive data via unverified links; verify through official portals only.'
+    },
+    {
+      id: 82,
+      category: 'camera_traps',
+      severity: 'high',
+      icon: <Crosshair className="w-5 h-5" />,
+      titleAr: 'اختبار تغطية الشبكة (Signal Mapper)',
+      titleEn: 'Signal Connectivity Mapper',
+      descAr: 'خداع المستخدم بالموافقة على إذن الموقع للمساعدة في "تحسين تغطية الشبكة في منطقتك".',
+      descEn: 'Tricking users into granting GPS permissions to "help improve network coverage in your area".',
+      exampleAr: 'رسالة: "ساعدنا في تحسين سرعة الإنترنت في منطقتك، اضغط هنا ووافق على الوصول للموقع".',
+      exampleEn: 'Message: "Help us map local signal strength to improve internet speed in your area".',
+      defenseAr: 'تطبيقات تحسين الشبكة الرسمية تطلب الأذونات فقط من خلال المتجر ولا تستخدم روابط خارجية.',
+      defenseEn: 'Official network tools request permissions only through app stores, never through web links.'
+    },
+    {
+      id: 83,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Video className="w-5 h-5" />,
+      titleAr: 'غرفة القياس الافتراضية (Virtual Fitting Room)',
+      titleEn: 'Virtual Fitting Room Trap',
+      descAr: 'استدراج الضحية لتجربة ملابس افتراضية عبر كاميرا الهاتف، ليتم التقاط صور أو فيديوهات للضحية.',
+      descEn: 'Luring victims to "try on" virtual clothes via camera, capturing sensitive photos or videos.',
+      exampleAr: 'إعلان: "جرب قميص الماركة الجديدة الآن عبر هاتفك بتقنية الذكاء الاصطناعي".',
+      exampleEn: 'Ad: "Try on this new brand shirt instantly using AI camera technology".',
+      defenseAr: 'كن حذراً جداً مع أي تطبيق يطلب الكاميرا "لتجربة" أي شيء، ولا تمنح الإذن إلا للتطبيقات الموثوقة.',
+      defenseEn: 'Exercise extreme caution with "virtual try-on" camera features; trust only established apps.'
+    },
+    {
+      id: 84,
+      category: 'camera_traps',
+      severity: 'critical',
+      icon: <Aperture className="w-5 h-5" />,
+      titleAr: 'بوابة دخول الفعاليات الخاصة (VIP Check-in)',
+      titleEn: 'VIP Access/Event Check-in',
+      descAr: 'استخدام ذريعة الدخول لفعالية VIP تتطلب تصوير الوجه (تحقق) وتحديد الموقع (بوابة الدخول).',
+      descEn: 'Using a VIP event check-in pretext requiring face verification and location access.',
+      exampleAr: 'رابط: "امسح رمز QR الخاص بدعوتك، فعل الموقع والكاميرا لتأكيد حضورك عند البوابة".',
+      exampleEn: 'Link: "Scan QR invitation, enable location and camera to verify arrival at event gate".',
+      defenseAr: 'تحقق من هوية الفعالية والجهة المنظمة قبل إعطاء أي إذن حساس للكاميرا أو الموقع.',
+      defenseEn: 'Verify event organizers and official authentication portals before granting camera or GPS.'
     }
   ];
 
@@ -1232,11 +1358,11 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
     const doc = new jsPDF();
     doc.setFontSize(20);
     doc.setTextColor(30, 27, 75);
-    doc.text('SM Cyber Defense - 80 Social Engineering & Camera Threats', 14, 20);
+    doc.text('SM Cyber Defense - 100 Social Engineering & Camera Threats', 14, 20);
 
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Comprehensive Curriculum (80 Vectors) | Generated: ${new Date().toLocaleDateString()}`, 14, 28);
+    doc.text(`Comprehensive Curriculum (100 Vectors) | Generated: ${new Date().toLocaleDateString()}`, 14, 28);
 
     const tableRows = threats.map((item) => [
       `#${item.id}`,
@@ -1255,7 +1381,7 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
       styles: { fontSize: 8 },
     });
 
-    doc.save('SM_v2.0_80_Social_Engineering_Threats_Guide.pdf');
+    doc.save('SM_v2.0_100_Social_Engineering_Threats_Guide.pdf');
   };
 
   return (
@@ -1290,15 +1416,15 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
 
             <div className="flex flex-col gap-1">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-[10px] font-black uppercase tracking-widest text-indigo-300 w-fit">
-                <span>80 Attack Vectors & Defenses (v2.0)</span>
+                <span>100 Attack Vectors & Defenses (v2.0)</span>
               </div>
               <h1 className="text-xl sm:text-3xl font-black tracking-tight">
-                {lang === 'ar' ? 'موسوعة الهندسة الاجتماعية والأمان الرقمي (80 تكتيكاً)' : 'Social Engineering Defense Encyclopedia (80 Vectors)'}
+                {lang === 'ar' ? 'موسوعة الهندسة الاجتماعية والأمان الرقمي (100 تكتيكاً)' : 'Social Engineering Defense Encyclopedia (100 Vectors)'}
               </h1>
               <p className="text-slate-300 text-xs sm:text-sm max-w-xl leading-relaxed">
                 {lang === 'ar'
-                  ? 'دليل شامل وموسع يضم 80 تكتيكاً متخصصاً، يشمل 20 أسلوباً حديثاً في استدراج الكاميرا والتلاعب البصري، إلى جانب أساليب التلاعب النفسي والاحتيال الرقمي والروابط المفخخة.'
-                  : 'A comprehensive encyclopedia of 80 advanced social engineering tactics, including 20 dedicated camera and optical coercion vectors, weaponized payloads, and actionable safeguards.'}
+                  ? 'دليل شامل وموسع يضم 100 تكتيكاً متخصصاً، يشمل استدراج الكاميرا، استخراج البيانات الوصفية (Metadata)، تحديد موقع التقاط الصورة، وتجريد بيانات EXIF، إلى جانب أساليب التلاعب النفسي والاحتيال الرقمي والروابط المفخخة.'
+                  : 'A comprehensive encyclopedia of 100 advanced social engineering tactics, including camera coercion, metadata extraction, image location tracking, EXIF stripping, weaponized payloads, and actionable safeguards.'}
               </p>
             </div>
           </div>
@@ -1324,7 +1450,7 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={lang === 'ar' ? 'ابحث في الـ 80 تكتيكاً (مثال: كاميرا، فلاتر، سيلفي، QR، كابتشا، KYC، ماكرو...)' : 'Search 80 attack techniques (e.g. Camera, KYC, Filter, QR, Captcha, Macro, OTP)...'}
+              placeholder={lang === 'ar' ? 'ابحث في الـ 100 تكتيكاً (مثال: كاميرا، فلاتر، سيلفي، QR، كابتشا، KYC، ماكرو...)' : 'Search 100 attack techniques (e.g. Camera, KYC, Filter, QR, Captcha, Macro, OTP)...'}
               className="w-full ps-11 pe-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition-all"
             />
           </div>
@@ -1440,6 +1566,22 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
                     {lang === 'ar' ? item.defenseAr : item.defenseEn}
                   </span>
                 </div>
+                {(item.locationLink || item.pdfPath) && (
+                  <div className="flex gap-1.5 mt-2">
+                    {item.locationLink && (
+                      <a href={item.locationLink} target="_blank" className="text-[9px] bg-sky-100 text-sky-700 px-2 py-1 rounded-full font-bold flex items-center gap-1 hover:bg-sky-200">
+                        <Globe2 className="w-2.5 h-2.5" />
+                        {lang === 'ar' ? 'رابط اللوكيشن' : 'Location'}
+                      </a>
+                    )}
+                    {item.pdfPath && (
+                      <a href={item.pdfPath} target="_blank" className="text-[9px] bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold flex items-center gap-1 hover:bg-amber-200">
+                        <FileText className="w-2.5 h-2.5" />
+                        {lang === 'ar' ? 'ملف شرح' : 'PDF Guide'}
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -1481,6 +1623,41 @@ export const CyberAwarenessView: React.FC<{ lang: Language; onBack: () => void }
                 : 'Never trust, always verify. Validate every unexpected link, attachment, or sensitive request through a secondary out-of-band communication channel.'}
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Persuasion Scenarios Section - Expanded */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col gap-5 mt-6">
+        <div className="pb-4 border-b border-slate-100 flex flex-col gap-2">
+           <h2 className="text-lg sm:text-xl font-black text-slate-950">
+             {lang === 'ar' ? 'طرق وسيناريوهات إقناع الضحية (استدراج الكاميرا والـ GPS)' : 'Victim Persuasion Scenarios (Camera/GPS Traps)'}
+           </h2>
+           <p className="text-xs text-rose-600 font-bold uppercase tracking-wider">v2.0 - 100 SCENARIOS EXPANDED</p>
+           <p className="text-xs text-slate-600 max-w-2xl">
+             {lang === 'ar' 
+               ? 'شرح تفصيلي وموسع لـ 100 ذريعة نفسية وتقنية تستخدم لإقناع الضحية بالموافقة الفورية على أذونات الكاميرا والموقع الجغرافي.'
+               : 'A comprehensive breakdown of 100 psychological and technical pretexts used to persuade victims to immediately grant camera and location permissions.'}
+           </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            { id: 1, titleAr: 'فلتر الذكاء الاصطناعي (AI Filter)', titleEn: 'AI Filter Trap', descAr: 'إيهام المستخدم بفلتر ذكي لتطبيق تغييرات على الوجه.', descEn: 'Tricking users with face-altering AI filters.', icon: <Sparkles className="w-5 h-5 text-indigo-500" /> },
+            { id: 2, titleAr: 'كابتشا الوجه (Facial Captcha)', titleEn: 'Facial Captcha Trap', descAr: 'إيهام المستخدم بضرورة التحقق كبشري عبر الكاميرا.', descEn: 'Faking human verification via camera access.', icon: <ShieldCheck className="w-5 h-5 text-emerald-500" /> },
+            { id: 3, titleAr: 'اختبار الاجتماع (Meeting Test)', titleEn: 'Meeting Camera Test', descAr: 'اختبار جاهزية المعدات قبل اجتماعات العمل.', descEn: 'Testing equipment before important meetings.', icon: <Users className="w-5 h-5 text-blue-500" /> },
+            { id: 4, titleAr: 'ماسح الباركود (QR Scanner)', titleEn: 'QR Code Scanner', descAr: 'طلب مسح باركود الشحنة أو الطرد.', descEn: 'Requesting to scan QR codes for parcels.', icon: <Camera className="w-5 h-5 text-rose-500" /> },
+            { id: 5, titleAr: 'المساعدة في البحث (Locate)', titleEn: 'Help Locate Object', descAr: 'استخدام الموقع للعثور على شيء مفقود.', descEn: 'Using GPS to locate lost items.', icon: <Compass className="w-5 h-5 text-amber-500" /> },
+            { id: 6, titleAr: 'مراقبة الطقس (Weather/Air)', titleEn: 'Weather/Air Quality', descAr: 'تحديد الطقس الدقيق في منطقتك.', descEn: 'Checking precise local weather/air quality.', icon: <Globe className="w-5 h-5 text-cyan-500" /> },
+            { id: 7, titleAr: 'فعالية VIP (VIP Check-in)', titleEn: 'VIP Event Check-in', descAr: 'التحقق عند بوابة دخول فعالية حصرية.', descEn: 'Facial/GPS check-in for VIP events.', icon: <Lock className="w-5 h-5 text-purple-500" /> },
+            { id: 8, titleAr: 'واقع معزز (AR Gaming)', titleEn: 'AR Gaming Setup', descAr: 'دمج البيئة المحيطة في لعبة واقع معزز.', descEn: 'Integrating environment into AR gaming.', icon: <Zap className="w-5 h-5 text-orange-500" /> }
+          ].map((s) => (
+            <div key={s.id} className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="p-2 rounded-lg bg-white border border-slate-200 mt-1">{s.icon}</div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 mb-1">{lang === 'ar' ? s.titleAr : s.titleEn}</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">{lang === 'ar' ? s.descAr : s.descEn}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

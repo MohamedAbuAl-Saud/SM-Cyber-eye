@@ -135,6 +135,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
     { label: 'Instagram Profile', url: 'https://instagram.com', icon: <Instagram className="w-3 h-3" /> },
   ];
 
+  const persuasionScenarios = [
+    { id: 1, title: lang === 'ar' ? 'سيناريو فلتر الذكاء الاصطناعي (AI Filter)' : 'AI Filter Trap', desc: lang === 'ar' ? 'إيهام المستخدم بفلتر ذكي لتطبيق تغييرات على الوجه.' : 'Tricking users with face-altering AI filters.', icon: <Sparkles className="w-5 h-5 text-indigo-500" /> },
+    { id: 2, title: lang === 'ar' ? 'سيناريو كابتشا الوجه (Facial Captcha)' : 'Facial Captcha Trap', desc: lang === 'ar' ? 'إيهام المستخدم بضرورة التحقق كبشري عبر الكاميرا.' : 'Faking human verification via camera access.', icon: <ShieldCheck className="w-5 h-5 text-emerald-500" /> },
+    { id: 3, title: lang === 'ar' ? 'سيناريو اختبار الاجتماع (Meeting Test)' : 'Meeting Camera Test', desc: lang === 'ar' ? 'اختبار جاهزية المعدات قبل اجتماعات العمل.' : 'Testing equipment before important meetings.', icon: <Users className="w-5 h-5 text-blue-500" /> },
+    { id: 4, title: lang === 'ar' ? 'سيناريو ماسح الباركود (QR Scanner)' : 'QR Code Scanner', desc: lang === 'ar' ? 'طلب مسح باركود الشحنة أو الطرد.' : 'Requesting to scan QR codes for parcels.', icon: <Camera className="w-5 h-5 text-rose-500" /> },
+    { id: 5, title: lang === 'ar' ? 'سيناريو المساعدة في البحث (Locate)' : 'Help Locate Object', desc: lang === 'ar' ? 'استخدام الموقع للعثور على شيء مفقود.' : 'Using GPS to locate lost items.', icon: <Compass className="w-5 h-5 text-amber-500" /> },
+    { id: 6, title: lang === 'ar' ? 'سيناريو مراقبة الطقس (Weather/Air)' : 'Weather/Air Quality', desc: lang === 'ar' ? 'تحديد الطقس الدقيق في منطقتك.' : 'Checking precise local weather/air quality.', icon: <Globe className="w-5 h-5 text-cyan-500" /> },
+    { id: 7, title: lang === 'ar' ? 'سيناريو فعالية VIP (VIP Check-in)' : 'VIP Event Check-in', desc: lang === 'ar' ? 'التحقق عند بوابة دخول فعالية حصرية.' : 'Facial/GPS check-in for VIP events.', icon: <Lock className="w-5 h-5 text-purple-500" /> },
+    { id: 8, title: lang === 'ar' ? 'سيناريو واقع معزز (AR Gaming)' : 'AR Gaming Setup', desc: lang === 'ar' ? 'دمج البيئة المحيطة في لعبة واقع معزز.' : 'Integrating environment into AR gaming.', icon: <Zap className="w-5 h-5 text-orange-500" /> },
+  ];
+
   // Comprehensive sections guide data
   const sectionsGuide = [
     {
@@ -251,17 +262,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
     },
     {
       id: 'sec-cyber-awareness',
-      title: lang === 'ar' ? '8. مركز التوعية بالهندسة الاجتماعية (80 تكتيكاً)' : '8. Social Engineering Defense Guide (80 Types)',
-      badge: 'EDU 80',
+      title: lang === 'ar' ? '8. مركز التوعية بالهندسة الاجتماعية (100 تكتيكاً)' : '8. Social Engineering Defense Guide (100 Types)',
+      badge: 'EDU 100',
       badgeColor: 'bg-rose-100 text-rose-800 border-rose-200',
       icon: <BookOpen className="w-5 h-5 text-rose-600" />,
       desc: lang === 'ar'
-        ? 'موسوعة تعليمية دفاعية متكاملة تضم 80 نوعاً وتكتيكاً من أساليب الهندسة الاجتماعية والاختراق الرقمي واستدراج الكاميرات، مع التركيز على حيل إقناع الضحية بفتح الكاميرا، كابتشا الوجه، فلاتر الذكاء الاصطناعي، روابط التصيد، ملفات PDF المفخخة، ماكرو الأوفيس، وتطبيقات APK الملغومة، مع سيناريوهات واقعية وخطة الدفاع الشاملة لكل تهديد.'
-        : 'Comprehensive defensive cyber education encyclopedia covering 80 distinct social engineering vectors including camera traps, biometric facial captchas, AI filter pretexts, malicious PDFs, trojan APKs, and wire fraud, complete with real-world scenarios and defense protocols.',
+        ? 'موسوعة تعليمية دفاعية متكاملة تضم 100 نوعاً وتكتيكاً من أساليب الهندسة الاجتماعية والاختراق الرقمي واستدراج الكاميرات، مع التركيز على حيل إقناع الضحية بفتح الكاميرا، كابتشا الوجه، فلاتر الذكاء الاصطناعي، روابط التصيد، ملفات PDF المفخخة، ماكرو الأوفيس، وتطبيقات APK الملغومة، مع سيناريوهات واقعية وخطة الدفاع الشاملة لكل تهديد.'
+        : 'Comprehensive defensive cyber education encyclopedia covering 100 distinct social engineering vectors including camera traps, biometric facial captchas, AI filter pretexts, malicious PDFs, trojan APKs, and wire fraud, complete with real-world scenarios and defense protocols.',
       features: lang === 'ar'
-        ? ['80 تكتيكاً وتهديداً سيبرانياً مع التركيز على استدراج الكاميرا', 'سيناريوهات واقعية دقيقة لإقناع وتوعية المستخدمين', 'إرشادات الحماية وخطوات الوقاية التقنية', 'بحث فوري وفلترة وتصدير الدليل إلى PDF']
-        : ['80 cybersecurity & camera trap methods covered', 'Realistic attack scenario for every threat vector', 'Actionable defense protocols and prevention tips', 'Instant live search, filtering, & PDF export'],
-      actionLabel: lang === 'ar' ? 'فتح مركز التوعية (80 تكتيكاً)' : 'Open Cyber Awareness',
+        ? ['100 تكتيكاً وتهديداً سيبرانياً مع التركيز على استدراج الكاميرا', 'سيناريوهات واقعية دقيقة لإقناع وتوعية المستخدمين', 'إرشادات الحماية وخطوات الوقاية التقنية', 'بحث فوري وفلترة وتصدير الدليل إلى PDF']
+        : ['100 cybersecurity & camera trap methods covered', 'Realistic attack scenario for every threat vector', 'Actionable defense protocols and prevention tips', 'Instant live search, filtering, & PDF export'],
+      actionLabel: lang === 'ar' ? 'فتح مركز التوعية (100 تكتيكاً)' : 'Open Cyber Awareness',
       actionView: 'cyber-awareness' as MainNavView,
       modeSelect: null,
     },
@@ -271,6 +282,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
     <div className="w-full max-w-5xl mx-auto px-3 sm:px-4 py-3 sm:py-5 flex flex-col gap-5">
       {/* Hero Header Banner */}
       <div className="text-center flex flex-col items-center gap-1.5">
+        <div className="relative w-20 h-20 rounded-full overflow-hidden p-1 border-4 border-indigo-600 bg-white shadow-lg mb-2">
+           <img
+            src="https://i.ibb.co/d4SN4h4h/Screenshot-20260723-035727-Gallery.jpg"
+            alt="Site Logo"
+            className="w-full h-full object-cover rounded-full"
+            referrerPolicy="no-referrer"
+           />
+        </div>
         <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-slate-900 text-indigo-300 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-800 shadow-sm">
           <Shield className="w-3.5 h-3.5 text-indigo-400" />
           <span>SM Cyber Security Suite 2026</span>
@@ -580,21 +599,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
                 <div>
                   <span className="text-sm sm:text-base font-black tracking-tight block">{t.cyberAwarenessTitle}</span>
-                  <span className="text-[10px] text-rose-300 font-bold uppercase tracking-wider">{lang === 'ar' ? '80 تكتيك للهندسة الاجتماعية والحماية (v2.0)' : '80 Attack Vectors & Defense Protocols (v2.0)'}</span>
+                  <span className="text-[10px] text-rose-300 font-bold uppercase tracking-wider">{lang === 'ar' ? '100 تكتيك للهندسة الاجتماعية والحماية (v2.0)' : '100 Attack Vectors & Defense Protocols (v2.0)'}</span>
                 </div>
               </div>
               <span className="px-3 py-1 rounded-full text-[9px] font-black bg-rose-500/20 text-rose-300 uppercase tracking-widest border border-rose-500/30">
-                80 TYPES
+                100 TYPES
               </span>
             </div>
             <p className="text-[11px] sm:text-xs text-indigo-200 leading-relaxed font-medium ps-1">
               {lang === 'ar'
-                ? 'دليل استخباري تعليمي شامل وموسع يغطي 80 نوعاً من مخاطر استدراج الكاميرا، كابتشا الوجه، الروابط الملغومة، ملفات الـ PDF، وماكرو الأوفيس.'
-                : 'Comprehensive cyber awareness encyclopedia featuring 80 social engineering attack methods with real camera pretexts and scenarios.'}
+                ? 'دليل استخباري تعليمي شامل وموسع يغطي 100 نوعاً من مخاطر استدراج الكاميرا، كابتشا الوجه، الروابط الملغومة، ملفات الـ PDF، وماكرو الأوفيس.'
+                : 'Comprehensive cyber awareness encyclopedia featuring 100 social engineering attack methods with real camera pretexts and scenarios.'}
             </p>
           </button>
         </div>
       </div>
+
+
 
       {/* ========================================================================= */}
       {/* EXCLUSIVE REPLACEMENT SECTION: COMPREHENSIVE SYSTEM SECTIONS GUIDE       */}
@@ -697,167 +718,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           ))}
         </div>
 
-        {/* ========================================================================= */}
-        {/* PERSUASION TACTICS & CAMERA TRAP PRETEXTING SCENARIOS                     */}
-        {/* ========================================================================= */}
-        <div className="mt-2 pt-4 border-t border-slate-200/90 flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-rose-50/60 via-slate-50 to-indigo-50/50 p-4 rounded-2xl border border-rose-200/60">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-xs shrink-0">
-                <Camera className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-base font-black text-slate-950 flex items-center gap-2">
-                  <span>{lang === 'ar' ? 'طرق وسيناريوهات إقناع الضحية (استدراج الكاميرا والـ GPS)' : 'Victim Persuasion Tactics (Camera Trap & GPS Pretexts)'}</span>
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-600 text-white">v2.0 EXPANDED</span>
-                </h3>
-                <p className="text-slate-600 text-xs mt-0.5">
-                  {lang === 'ar'
-                    ? 'شرح تفصيلي للذرائع النفسية والتقنية المستخدمة لإقناع الضحية بالموافقة الفورية على إذن الكاميرا والموقع الجغرافي دون أي شك.'
-                    : 'Tactical breakdown of psychological and technical pretexts used to persuade targets into granting camera and GPS permissions.'}
-                </p>
-              </div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {/* Scenario 1: AI Filter */}
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-rose-300 transition-all flex flex-col justify-between gap-3 shadow-2xs">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-rose-100 text-rose-800 text-xs font-black flex items-center justify-center">1</span>
-                    <h4 className="text-xs sm:text-sm font-black text-slate-950">
-                      {lang === 'ar' ? 'سيناريو فلتر الذكاء الاصطناعي والصور الشخصية (AI Filter)' : 'AI Photo Filter & Avatar Pretext'}
-                    </h4>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                    {lang === 'ar' ? 'تأثير بصري' : 'Visual Hook'}
-                  </span>
-                </div>
-                <p className="text-slate-600 text-xs leading-relaxed">
-                  {lang === 'ar'
-                    ? 'إرسال رابط بمظهر موقع تعديل الصور أو فلاتر تيك توك وإنستغرام الذكية ("شاهد كيف ستبدو ملامحك بعد 30 عاماً أو في العصر الفرعوني"). يطلب الموقع إذن الكاميرا بحجة تطبيق الفلتر على الوجه مباشرة، فيوافق الضحية فوراً دون تردد.'
-                    : 'Sending a link disguised as an AI face morph or Instagram/TikTok style filter. The site naturally prompts for camera access to "apply real-time effects", yielding immediate user consent.'}
-                </p>
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-[11px] text-slate-700 space-y-1">
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    <span>{lang === 'ar' ? 'المحفز النفسي:' : 'Psychological Trigger:'}</span>
-                    <span className="font-normal text-slate-600">{lang === 'ar' ? 'الفضول الشديد والرغبة في تجربة الفلتر الترفيهي.' : 'Curiosity and eagerness for social entertainment.'}</span>
-                  </div>
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>{lang === 'ar' ? 'الدفاع والتوعية:' : 'Defense Tip:'}</span>
-                    <span className="font-normal text-slate-600">{lang === 'ar' ? 'لا تسمح لمواقع الويب المجهولة بتشغيل الكاميرا أبداً؛ استخدم تطبيقات رسمية فقط.' : 'Never allow browser camera prompts from unknown domains.'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Scenario 2: Biometric Liveness */}
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-rose-300 transition-all flex flex-col justify-between gap-3 shadow-2xs">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-rose-100 text-rose-800 text-xs font-black flex items-center justify-center">2</span>
-                    <h4 className="text-xs sm:text-sm font-black text-slate-950">
-                      {lang === 'ar' ? 'سيناريو كابتشا الوجه الحيوية لمنع الروبوتات (Facial Captcha)' : 'Biometric Liveness Cloudflare Captcha'}
-                    </h4>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    {lang === 'ar' ? 'أمني وهمي' : 'Security Pretext'}
-                  </span>
-                </div>
-                <p className="text-slate-600 text-xs leading-relaxed">
-                  {lang === 'ar'
-                    ? 'إيهام المستخدم بأن الصفحة محمية بنظام كابتشا متطور (Cloudflare Biometric Verification) يتطلب النظر إلى الكاميرا والرمش 3 مرات لإثبات أنه إنسان وليس روبوت هجومي. الضحية ينظر مباشرة للعدسة بوضوح وتركيز تام.'
-                    : 'Displaying a fake Cloudflare or Google liveness check requiring the user to look into the camera and blink to verify human identity. The victim stares directly at the sensor in sharp focus.'}
-                </p>
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-[11px] text-slate-700 space-y-1">
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    <span>{lang === 'ar' ? 'المحفز النفسي:' : 'Psychological Trigger:'}</span>
-                    <span className="font-normal text-slate-600">{lang === 'ar' ? 'الانصياع لإجراءات الأمان الروتينية للوصول إلى المحتوى.' : 'Compliance with standard security verification friction.'}</span>
-                  </div>
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>{lang === 'ar' ? 'الدفاع والتوعية:' : 'Defense Tip:'}</span>
-                    <span className="font-normal text-slate-600">{lang === 'ar' ? 'لا توجد كابتشا شرعية تطلب الكاميرا؛ الكابتشا الرسمية تعتمد على النقر والألغاز فقط.' : 'Real CAPTCHAs never request live camera access.'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Scenario 3: Camera & Audio Test */}
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-rose-300 transition-all flex flex-col justify-between gap-3 shadow-2xs">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-rose-100 text-rose-800 text-xs font-black flex items-center justify-center">3</span>
-                    <h4 className="text-xs sm:text-sm font-black text-slate-950">
-                      {lang === 'ar' ? 'سيناريو فحص الكاميرا قبل اجتماع العمل (Meeting Camera Test)' : 'Pre-Meeting Camera & Audio Diagnostic'}
-                    </h4>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    {lang === 'ar' ? 'عمل ومهام' : 'Corporate'}
-                  </span>
-                </div>
-                <p className="text-slate-600 text-xs leading-relaxed">
-                  {lang === 'ar'
-                    ? 'إرسال رابط يحاكي منصات Zoom أو Google Meet أو Teams مع رسالة "يرجى اختبار الميكروفون وجودة العدسة الأمامية والخلفية قبل بدء المقابلة". الضحية يضغط سماح فوراً لضمان جاهزية معداته للاجتماع.'
-                    : 'Mimicking Zoom, Teams, or Google Meet room diagnostics with "Check camera and microphone clarity before meeting". Targets comply immediately to ensure hardware readiness.'}
-                </p>
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-[11px] text-slate-700 space-y-1">
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    <span>{lang === 'ar' ? 'المحفز النفسي:' : 'Psychological Trigger:'}</span>
-                    <span className="font-normal text-slate-600">{lang === 'ar' ? 'الخوف من الإحراج التقني والحرص على نجاح اجتماع العمل أو المقابلة.' : 'Professional anxiety and ensuring tech readiness.'}</span>
-                  </div>
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>{lang === 'ar' ? 'الدفاع والتوعية:' : 'Defense Tip:'}</span>
-                    <span className="font-normal text-slate-600">{lang === 'ar' ? 'تأكد من عنوان النطاق الرسمي لمنصة الاجتماع ولا تفتح روابط خارجية غير موثوقة.' : 'Inspect the domain URL before joining video calls.'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Scenario 4: QR & Delivery Scanner */}
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-rose-300 transition-all flex flex-col justify-between gap-3 shadow-2xs">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-rose-100 text-rose-800 text-xs font-black flex items-center justify-center">4</span>
-                    <h4 className="text-xs sm:text-sm font-black text-slate-950">
-                      {lang === 'ar' ? 'سيناريو مسح كود الشحنة أو بطاقة الهدايا (QR Code Scanner)' : 'QR Code & Delivery Parcel Scanner'}
-                    </h4>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                    {lang === 'ar' ? 'كاميرا خلفية' : 'Rear Camera'}
-                  </span>
-                </div>
-                <p className="text-slate-600 text-xs leading-relaxed">
-                  {lang === 'ar'
-                    ? 'إرسال رابط تتبع شحنة بريدية (DHL أو Aramex) يطلب من المستخدم فتح الكاميرا الخلفية لمسح باركود الطرد أو توثيق الاستلام. هذا السيناريو ممتاز لتشغيل الكاميرا الخلفية وتوثيق محيط الضحية والغرفة أو المكتب.'
-                    : 'Dispatching parcel tracking (DHL/FedEx) prompting the rear camera to scan delivery barcodes. Ideal pretext for activating the rear camera and recording room surroundings.'}
-                </p>
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-[11px] text-slate-700 space-y-1">
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    <span>{lang === 'ar' ? 'المحفز النفسي:' : 'Psychological Trigger:'}</span>
-                    <span className="font-normal text-slate-600">{lang === 'ar' ? 'الترقب والحرص على استلام الطرد أو الشحنة البريدية.' : 'Anticipation and urgency for parcel receipt.'}</span>
-                  </div>
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>{lang === 'ar' ? 'الدفاع والتوعية:' : 'Defense Tip:'}</span>
-                    <span className="font-normal text-slate-600">{lang === 'ar' ? 'شركات الشحن الرسمية تستعلم برقم التتبع النصي ولا تحتاج فتح كاميرا متصفحك.' : 'Legitimate couriers use textual tracking numbers, not browser cameras.'}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* ---------------------------------------------------- */}
+      {/* TELEMETRY METRICS & RECENT LINKS                     */}
+      {/* ---------------------------------------------------- */}
       </div>
 
       {/* ---------------------------------------------------- */}

