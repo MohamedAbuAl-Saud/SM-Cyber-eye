@@ -1542,6 +1542,41 @@ function renderFakeAdminHtml(ip: string, userAgent: string): string {
 
 async function startServer() {
   const app = express();
+  
+  // --- SECURITY LAYER START ---
+  const HACK_DIR = path.join(process.cwd(), 'HACK');
+  if (!fs.existsSync(HACK_DIR)) fs.mkdirSync(HACK_DIR);
+  const LOG_FILE = path.join(HACK_DIR, 'security.log');
+
+  app.use(async (req, res, next) => {
+    // Only block direct access to specific sensitive configuration files
+    const sensitiveFiles = ['/.env', '/package.json', '/server.ts', '/vite.config.ts', '/tsconfig.json'];
+    const isSensitive = sensitiveFiles.some(f => req.path === f);
+
+    if (isSensitive) {
+      const logEntry = `${new Date().toISOString()} | IP: ${req.ip} | Path: ${req.path} | UA: ${req.headers['user-agent']}\n`;
+      try {
+        await fs.promises.appendFile(LOG_FILE, logEntry);
+      } catch (err) {
+        console.error('Failed to log hack attempt:', err);
+      }
+
+      return res.status(403).send(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>403 Forbidden</title></head>
+          <body style="background: #000; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh;">
+            <div style="text-align: center;">
+              <h1>403 Forbidden</h1>
+              <p>Access denied.</p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+    next();
+  });
+  // --- SECURITY LAYER END ---
   const db = loadDatabase();
 
   app.set('trust proxy', 1);
@@ -1554,15 +1589,15 @@ async function startServer() {
 
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5000,
+    max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' }
   });
   app.use('/api/', limiter);
 
-  app.use(express.json({ limit: '30mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '30mb' }));
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   app.get(['/Favicon.jpg', '/favicon.jpg', '/public/Favicon.jpg'], (req, res) => {
     const p = path.join(process.cwd(), 'Favicon.jpg');
