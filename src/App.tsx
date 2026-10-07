@@ -8,7 +8,6 @@ import { MacLookupView } from './components/MacLookupView';
 import { ExifToolView } from './components/ExifToolView';
 import { CyberAwarenessView } from './components/CyberAwarenessView';
 import { SupportView } from './components/SupportView';
-import { RobotCaptchaModal } from './components/RobotCaptchaModal';
 import { SectionTrapModal } from './components/SectionTrapModal';
 import { VisitDetailModal } from './components/VisitDetailModal';
 import { LiveDeviceAlertToast } from './components/LiveDeviceAlertToast';
@@ -20,25 +19,6 @@ import { X, Clock, ExternalLink, Trash2, Globe } from 'lucide-react';
 const USER_TOKEN_KEY = 'ipsm_user_token';
 const SAVED_LINKS_KEY = 'ipsm_saved_links';
 const LANG_KEY = 'ipsm_lang';
-
-function checkIsRobotVerified(): boolean {
-  try {
-    const verifiedTimeStr = localStorage.getItem('sm_robot_verified_time');
-    const isCookie = document.cookie.includes('sm_robot_verified=true');
-    
-    if (verifiedTimeStr) {
-      const verifiedTime = parseInt(verifiedTimeStr, 10);
-      // Fallback: in sandboxed iframe previews, cookies can be disabled/blocked. 
-      // Relying on localStorage timestamp (under 4 hours / 14400000ms) guarantees robust persistence.
-      if (!isNaN(verifiedTime) && (Date.now() - verifiedTime < 14400000)) {
-        return true;
-      }
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
 
 function getOrSetUserToken(): string {
   let token = localStorage.getItem(USER_TOKEN_KEY);
@@ -85,10 +65,8 @@ export default function App() {
   const [isCreating, setIsCreating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);
-  const [showCaptcha, setShowCaptcha] = useState(() => !checkIsRobotVerified());
   const [isTrapModalOpen, setIsTrapModalOpen] = useState(false);
   const [trapModalMode, setTrapModalMode] = useState<TrackingMode>('camera');
-  const [pendingView, setPendingView] = useState<MainNavView | null>(null);
 
   const [globalVisits, setGlobalVisits] = useState(800);
   const [globalLinks, setGlobalLinks] = useState(1500);
@@ -115,8 +93,12 @@ export default function App() {
   const fetchLinkData = useCallback(async (code: string) => {
     setIsRefreshing(true);
     try {
+      const token = getOrSetUserToken();
       const res = await fetch(`/api/links/${code}`, {
-        headers: { 'x-sm-auth': 'active' }
+        headers: {
+          'x-sm-auth': 'active',
+          'x-user-token': token,
+        }
       });
       const contentType = res.headers.get('content-type');
       if (res.ok && contentType && contentType.includes('application/json')) {
@@ -365,11 +347,6 @@ export default function App() {
   };
 
   const handleCreateLink = async (originalUrl: string, mode: TrackingMode) => {
-    if (!checkIsRobotVerified()) {
-      setShowCaptcha(true);
-      return;
-    }
-
     setIsCreating(true);
     try {
       const userToken = getOrSetUserToken();
@@ -403,9 +380,13 @@ export default function App() {
 
   const handleDeleteLink = async (code: string) => {
     try {
+      const token = getOrSetUserToken();
       await fetch(`/api/links/${code}`, {
         method: 'DELETE',
-        headers: { 'x-sm-auth': 'active' }
+        headers: {
+          'x-sm-auth': 'active',
+          'x-user-token': token,
+        }
       });
     } catch (err) {
     } finally {
@@ -420,10 +401,6 @@ export default function App() {
   };
 
   const handleSelectLink = (code: string) => {
-    if (!checkIsRobotVerified()) {
-      setShowCaptcha(true);
-      return;
-    }
     setActiveCode(code);
     setActiveView('track');
     window.history.pushState({}, '', `?code=${code}`);
@@ -439,16 +416,6 @@ export default function App() {
   };
 
   const handleChangeView = (view: MainNavView) => {
-    if (!checkIsRobotVerified()) {
-      setPendingView(view);
-      setShowCaptcha(true);
-      return;
-    }
-
-    executeChangeView(view);
-  };
-
-  const executeChangeView = (view: MainNavView) => {
     setActiveView(view);
     if (view !== 'track') {
       setActiveCode(null);
@@ -456,14 +423,6 @@ export default function App() {
       setVisits([]);
       const url = view === 'home' ? window.location.pathname : `?tab=${view}`;
       window.history.pushState({}, '', url);
-    }
-  };
-
-  const handleCaptchaSuccess = () => {
-    setShowCaptcha(false);
-    if (pendingView) {
-      executeChangeView(pendingView);
-      setPendingView(null);
     }
   };
 
@@ -526,12 +485,6 @@ export default function App() {
           />
         )}
       </main>
-
-      <RobotCaptchaModal
-        isOpen={showCaptcha}
-        lang={lang}
-        onVerifySuccess={handleCaptchaSuccess}
-      />
 
       <SectionTrapModal
         isOpen={isTrapModalOpen}

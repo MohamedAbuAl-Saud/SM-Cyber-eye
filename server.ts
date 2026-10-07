@@ -1545,34 +1545,176 @@ async function startServer() {
   
   // --- SECURITY LAYER START ---
   const HACK_DIR = path.join(process.cwd(), 'HACK');
-  if (!fs.existsSync(HACK_DIR)) fs.mkdirSync(HACK_DIR);
+  if (!fs.existsSync(HACK_DIR)) fs.mkdirSync(HACK_DIR, { recursive: true });
   const LOG_FILE = path.join(HACK_DIR, 'security.log');
 
   app.use(async (req, res, next) => {
-    // Only block direct access to specific sensitive configuration files
-    const sensitiveFiles = ['/.env', '/package.json', '/server.ts', '/vite.config.ts', '/tsconfig.json'];
-    const isSensitive = sensitiveFiles.some(f => req.path === f);
+    const rawPath = req.path || '';
+    let decodedPath = rawPath;
+    try {
+      decodedPath = decodeURIComponent(rawPath);
+    } catch (e) {
+      decodedPath = rawPath;
+    }
+    const lowerPath = decodedPath.toLowerCase();
 
-    if (isSensitive) {
-      const logEntry = `${new Date().toISOString()} | IP: ${req.ip} | Path: ${req.path} | UA: ${req.headers['user-agent']}\n`;
+    // Whitelisted routes: Application entry, static build assets, and public directory
+    if (
+      lowerPath === '/' ||
+      lowerPath === '/index.html' ||
+      lowerPath.startsWith('/public/') ||
+      lowerPath === '/favicon.svg' ||
+      lowerPath === '/favicon.ico' ||
+      lowerPath === '/favicon.png' ||
+      lowerPath.startsWith('/@') ||
+      lowerPath.startsWith('/api/health') ||
+      lowerPath.startsWith('/api/trigger-ban') ||
+      lowerPath.startsWith('/node_modules/.vite/') ||
+      lowerPath.startsWith('/node_modules/vite/')
+    ) {
+      return next();
+    }
+
+    // Direct forbidden folder paths
+    const isSensitiveFolder =
+      lowerPath.startsWith('/hack') ||
+      lowerPath.startsWith('/data') ||
+      lowerPath.startsWith('/assets') ||
+      lowerPath === '/uploads' ||
+      lowerPath === '/uploads/' ||
+      (lowerPath.startsWith('/node_modules') && !lowerPath.startsWith('/node_modules/.vite/')) ||
+      lowerPath.startsWith('/.git');
+
+    // Forbidden files: directly requested sensitive project files
+    const sensitiveExactFiles = [
+      '/favicon.jpg',
+      '/.env',
+      '/.env.example',
+      '/.gitignore',
+      '/bun.lock',
+      '/metadata.json',
+      '/server.ts',
+      '/vite.config.ts',
+      '/tsconfig.json',
+      '/package.json',
+      '/package-lock.json',
+      '/check_icons.ts'
+    ];
+
+    // Check if client is directly navigating in browser to view source files (.ts, .tsx, .json)
+    // Legit Vite imports come with specific headers or query params (like ?t= or ?import or referer)
+    const isDirectBrowserNav = 
+      req.headers.accept?.includes('text/html') &&
+      !req.headers['sec-fetch-dest']?.includes('script') &&
+      !req.headers['sec-fetch-dest']?.includes('style') &&
+      !req.query.import &&
+      !req.query.html_proxy;
+
+    const isSensitiveFile =
+      sensitiveExactFiles.includes(lowerPath) ||
+      lowerPath.endsWith('.lock') ||
+      (lowerPath.endsWith('.json') && !lowerPath.startsWith('/api/')) ||
+      lowerPath.includes('..') ||
+      (lowerPath.startsWith('/src/') && isDirectBrowserNav);
+
+    if (isSensitiveFolder || isSensitiveFile) {
+      const clientIp = (
+        (req.headers['cf-connecting-ip'] as string) ||
+        (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() ||
+        (req.headers['x-real-ip'] as string) ||
+        req.socket.remoteAddress ||
+        '127.0.0.1'
+      ).replace('::ffff:', '');
+
+      const userAgent = (req.headers['user-agent'] as string) || 'Unknown';
+      const timestamp = new Date().toISOString();
+      const logEntry = `[${timestamp}] ACCESS_BLOCKED | IP: ${clientIp} | Path: ${decodedPath} | UA: ${userAgent}\n`;
+
       try {
         await fs.promises.appendFile(LOG_FILE, logEntry);
       } catch (err) {
-        console.error('Failed to log hack attempt:', err);
+        console.error('Failed to log security attempt:', err);
       }
 
-      return res.status(403).send(`
-        <!DOCTYPE html>
-        <html>
-          <head><title>403 Forbidden</title></head>
-          <body style="background: #000; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh;">
-            <div style="text-align: center;">
-              <h1>403 Forbidden</h1>
-              <p>Access denied.</p>
-            </div>
-          </body>
-        </html>
-      `);
+      if (req.headers.accept?.includes('application/json')) {
+        return res.status(403).json({
+          error: 'Access Denied: Direct file and directory access is restricted.',
+          code: 'FORBIDDEN'
+        });
+      }
+
+      return res.status(403).send(`<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>403 - وصول محظور</title>
+  <link rel="icon" type="image/svg+xml" href="/public/favicon.svg">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+    .card {
+      max-width: 440px;
+      padding: 40px 24px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #e0e7ff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    }
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 800;
+      color: #1e1b4b;
+    }
+    p {
+      margin: 0;
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 14px;
+      background-color: #fee2e2;
+      color: #991b1b;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/public/Favicon.jpg" alt="Logo" class="logo" />
+    <span class="badge">403 Forbidden</span>
+    <h1>الوصول غير مصرّح به</h1>
+    <p>تم حظر الوصول إلى هذا الملف أو المجلد المحمي بنجاح. سُجلت هذه المحاولة لحماية النظام.</p>
+  </div>
+</body>
+</html>`);
     }
     next();
   });
@@ -1962,7 +2104,7 @@ async function startServer() {
     }
   });
 
-  // Get link info and visit records
+  // Get link info and visit records (Protected against IDOR)
   app.get('/api/links/:code', (req, res) => {
     try {
       const { code } = req.params;
@@ -1970,6 +2112,22 @@ async function startServer() {
       if (!link) {
         res.status(404).json({ error: 'Link not found' });
         return;
+      }
+
+      // IDOR Protection: Verify owner token
+      let userToken = (req.headers['x-user-token'] as string) || (req.query.token as string);
+      if (!userToken && req.headers.cookie) {
+        const match = req.headers.cookie.match(/(?:^|; )ipsm_user_token=([^;]*)/);
+        if (match && match[1]) {
+          userToken = decodeURIComponent(match[1]);
+        }
+      }
+
+      if (link.userToken && (!userToken || userToken !== link.userToken)) {
+        return res.status(403).json({
+          error: 'Access Denied: You do not have permission to view this link data.',
+          code: 'IDOR_PREVENTED'
+        });
       }
 
       const visits = db.visits
@@ -1993,7 +2151,7 @@ async function startServer() {
     }
   });
 
-  // Delete link and all associated visits
+  // Delete link and all associated visits (Protected against IDOR)
   app.delete('/api/links/:code', (req, res) => {
     try {
       const { code } = req.params;
@@ -2003,7 +2161,25 @@ async function startServer() {
         return;
       }
 
-      const linkId = db.links[linkIndex].id;
+      const link = db.links[linkIndex];
+
+      // IDOR Protection: Verify owner token
+      let userToken = (req.headers['x-user-token'] as string) || (req.query.token as string) || (req.body && req.body.userToken);
+      if (!userToken && req.headers.cookie) {
+        const match = req.headers.cookie.match(/(?:^|; )ipsm_user_token=([^;]*)/);
+        if (match && match[1]) {
+          userToken = decodeURIComponent(match[1]);
+        }
+      }
+
+      if (link.userToken && (!userToken || userToken !== link.userToken)) {
+        return res.status(403).json({
+          error: 'Access Denied: You do not have permission to delete this link.',
+          code: 'IDOR_PREVENTED'
+        });
+      }
+
+      const linkId = link.id;
       db.links.splice(linkIndex, 1);
       
       // Delete all visits and their associated photos when a link is deleted
